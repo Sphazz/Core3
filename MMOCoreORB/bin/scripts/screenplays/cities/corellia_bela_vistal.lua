@@ -43,7 +43,7 @@ CorelliaBelaVistalScreenPlay = CityScreenPlay:new {
 		{"stormtrooper", 6837.95, 315, -5806.84, 302.784, 0, "npc_imperial"},
 	},
 
-	patrolNpcs = {"businessman_patrol", "commoner_fat_patrol", "commoner_old_patrol", "commoner_patrol", "explorer", "noble_patrol"},
+	patrolNpcs = {"businessman_patrol", "commoner_fat_patrol", "commoner_old_patrol", "commoner_patrol", "explorer_patrol", "noble_patrol"},
 
 	patrolMobiles = {
 		--{patrolPoints, template, x, z, y, direction, cell, mood, combatPatrol},
@@ -73,7 +73,7 @@ CorelliaBelaVistalScreenPlay = CityScreenPlay:new {
 
 		npc_1 = {{6846, 315, -5588, 0, true}, {6847, 315, -5617, 0, true}, {6808, 315, -5616, 0, false}, {6830, 315, -5599, 0, true}, {6833.8, 315, -5580.4, 0, true}},
 		npc_2 = {{6829, 315, -5745, 0, false}, {6818, 314, -5620, 0, false}, {6779, 314, -5620, 0, true}, {6818, 314, -5620, 0, true}},
-		npc_3 = {{6755, 314, -5625, 0, false}, {6731, 315, -5588, 0, true}, {6702, 315, -5583, 0, true}, {6699, 315, -5567, 0, true}, {6723, 315, -5567, 0, false}, {6731, 315, 0, true}},
+		npc_3 = {{6755, 314, -5625, 0, false}, {6731, 315, -5588, 0, true}, {6702, 315, -5583, 0, true}, {6699, 315, -5567, 0, true}, {6723, 315, -5567, 0, false}, {6731, 315, -5574, 0, true}},
 		npc_4 = {{6740, 315, -5674, 0, true}, {6742, 315, -5697, 0, true}, {6714, 315, -5692, 0, false}, {6742, 315, -5697, 0, true}},
 		npc_5 = {{6761, 315, -5695, 0, true}, {6761, 315, -5731, 0, true}, {6795, 315, -5732, 0, true}, {6761, 315, -5731, 0, true}},
 		npc_6 = {{6829, 315, -5745, 0, true}, {6828, 315, -5799, 0, true}},
@@ -159,7 +159,6 @@ CorelliaBelaVistalScreenPlay = CityScreenPlay:new {
 		{"trainer_scout", 0, 6737.85, 315, -5491.3, 31, 0, ""},
 		{"trainer_scout",  0, 6724, 315, -5682, 0, 0, ""},
 
-		{"bartender",60,8.54,-0.894992,0.14,87.0026,3375355, "neutral"},
 		{"businessman",60,-6.56842,-0.894996,21.9012,135.001,3375361, "conversation"},
 		{"contractor",60,-5.46842,-0.894996,21.9012,180.003,3375361, "conversation"},
 		{"bounty_hunter",60,21.6023,-0.894996,-18.5913,360.011,3375356, "conversation"},
@@ -167,7 +166,7 @@ CorelliaBelaVistalScreenPlay = CityScreenPlay:new {
 		{"commoner",60,-42.3991,0.105009,-23.2411,180.016,3375367, "conversation"},
 		{"info_broker",60,21.6023,-0.894996,-17.4913,180.012,3375356, "conversation"},
 		{"medic",60,-43.4991,0.105009,-23.2411,135.007,3375367, "conversation"},
-		{"mercenary",60,-5.46842,-0.894998,20.8012,0,3375361, "conversation"},
+		{"mercenary",300,-5.46842,-0.894998,20.8012,0,3375361, "conversation"},
 		{"junk_malik", 0, 6969.06, 330, -5588.66, 105, 0, ""},
 		{"junk_dealer", 0, 6756.79, 315, -5779.1, 96, 0, ""}
 	}

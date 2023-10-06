@@ -38,6 +38,7 @@ include server.zone.managers.collision.IntersectionResults;
 include server.zone.managers.player.VeteranRewardList;
 include server.zone.managers.player.JukeboxSong;
 include server.zone.managers.player.QuestInfo;
+include server.zone.managers.player.QuestTasks;
 include server.zone.objects.player.badges.Badge;
 include system.util.Vector;
 include system.lang.ref.Reference;
@@ -87,6 +88,8 @@ class PlayerManager extends Observer implements Logger {
 	protected boolean allowSameAccountPvpRatingCredit;
 	protected int onlineCharactersPerAccount;
 
+	protected unsigned int coaWinningFaction;
+
 	@dereferenced
 	protected XpBonusList xpBonusList;
 
@@ -114,6 +117,15 @@ class PlayerManager extends Observer implements Logger {
 	protected transient Vector<Reference<QuestInfo> > questInfo;
 
 	@dereferenced
+	protected transient VectorMap<unsigned int, string> questCrcTable;
+
+	@dereferenced
+	private transient ReadWriteLock questTaskMutex;
+
+	@dereferenced
+	protected transient VectorMap<unsigned int, Reference<QuestTasks> > questTasksCache;
+
+	@dereferenced
 	private transient OnlineZoneClientMap onlineZoneClientMap;
 
 	public native PlayerManager(ZoneServer zoneServer, ZoneProcessServer impl, boolean trackOnlineUsers);
@@ -123,6 +135,7 @@ class PlayerManager extends Observer implements Logger {
 	private native void loadStartingLocations();
 	private native void loadPermissionLevels();
 	private native void loadQuestInfo();
+	private native void loadQuestCrcTable();
 
 	public native void finalize();
 
@@ -198,7 +211,7 @@ class PlayerManager extends Observer implements Logger {
 	public native SortedVector<SceneObject> getInsurableItems(CreatureObject player, boolean onlyInsurable = true);
 
 	/**
-	* Returns a collection of items, in the players inventory, whose GameObjectType is 
+	* Returns a collection of items, in the players inventory, whose GameObjectType is
 	* indicated in the given mask
 	* @param player The player for which to find the items.
 	* @param mask A bitmask representing the GambeObjectTypes to search for
@@ -210,12 +223,21 @@ class PlayerManager extends Observer implements Logger {
 	@local
 	public native void addInsurableItemsRecursive(SceneObject obj, SortedVector<SceneObject> items, boolean onlyInsurable);
 
+	@arg1preLocked
 	public native void handleAbortTradeMessage(CreatureObject player);
+
+	@arg1preLocked
 	public native void handleAddItemToTradeWindow(CreatureObject player, unsigned long itemID);
+
+	@arg1preLocked
 	public native void handleGiveMoneyMessage(CreatureObject player, unsigned int value);
+
 	public native void handleAcceptTransactionMessage(CreatureObject player);
 	public native void handleUnAcceptTransactionMessage(CreatureObject player);
+
+	@arg1preLocked
 	public native void handleVerifyTradeMessage(CreatureObject player);
+
 	public native boolean checkTradeItems(CreatureObject player, CreatureObject receiver);
 
 	/**
@@ -476,6 +498,17 @@ class PlayerManager extends Observer implements Logger {
 	@local
 	public native QuestInfo getQuestInfo(int questID) {
 		return questInfo.get(questID);
+	}
+
+	@local
+	public native QuestTasks getQuestTasks(final unsigned int questCrc);
+
+	public unsigned int getCoaWinningFaction() {
+		return coaWinningFaction;
+	}
+
+	public void setCoaWinningFaction(unsigned int faction) {
+		coaWinningFaction = faction;
 	}
 
 	/**

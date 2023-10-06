@@ -115,7 +115,7 @@ void ObjectManager::registerObjectTypes() {
 	objectFactory.registerObject<ArmorObject>(SceneObjectType::ARMOR);
 	objectFactory.registerObject<ArmorObject>(SceneObjectType::BODYARMOR); //chest plates
 	objectFactory.registerObject<ArmorObject>(SceneObjectType::HEADARMOR);
-	objectFactory.registerObject<ClothingObject>(SceneObjectType::MISCARMOR); // Some Belts Bando's'
+	objectFactory.registerObject<ArmorObject>(SceneObjectType::MISCARMOR); // Some Belts Bando's'
 	objectFactory.registerObject<ArmorObject>(SceneObjectType::LEGARMOR);
 	objectFactory.registerObject<ArmorObject>(SceneObjectType::ARMARMOR);
 	objectFactory.registerObject<ArmorObject>(SceneObjectType::HANDARMOR);
@@ -145,6 +145,7 @@ void ObjectManager::registerObjectTypes() {
 	objectFactory.registerObject<PlantObject>(SceneObjectType::GROWABLEPLANT);
 	objectFactory.registerObject<FsCsObject>(SceneObjectType::FSCSOBJECT);
 	objectFactory.registerObject<FsBuffItem>(SceneObjectType::FSBUFFITEM);
+	objectFactory.registerObject<DeadEyePrototype>(SceneObjectType::DEADEYEPROTOTYPE);
 	objectFactory.registerObject<ContractCrate>(SceneObjectType::CONTRACTCRATE);
 	objectFactory.registerObject<SlicingTool>(SceneObjectType::SLICINGTOOL);
 	objectFactory.registerObject<SlicingTool>(SceneObjectType::FLOWANALYZER);
@@ -186,6 +187,7 @@ void ObjectManager::registerObjectTypes() {
 	objectFactory.registerObject<GeneratorObject>(SceneObjectType::GENERATOR);
 	objectFactory.registerObject<InstallationObject>(SceneObjectType::DESTRUCTIBLE);
 	objectFactory.registerObject<InstallationObject>(SceneObjectType::MINEFIELD);
+	objectFactory.registerObject<InstallationObject>(SceneObjectType::COVERTSCANNER);
 	objectFactory.registerObject<WeaponObject>(SceneObjectType::WEAPON);
 	objectFactory.registerObject<WeaponObject>(SceneObjectType::MELEEWEAPON);
 	objectFactory.registerObject<WeaponObject>(SceneObjectType::PISTOL);
@@ -280,6 +282,7 @@ void ObjectManager::registerObjectTypes() {
 	objectFactory.registerObject<VehicleObject>(SceneObjectType::VEHICLE);
 	objectFactory.registerObject<VehicleObject>(SceneObjectType::HOVERVEHICLE);
 	objectFactory.registerObject<DroidObject>(SceneObjectType::DROIDCREATURE);
+	objectFactory.registerObject<HelperDroidObject>(SceneObjectType::HELPERDROIDCREATURE);
 	objectFactory.registerObject<ResourceSpawn>(SceneObjectType::RESOURCESPAWN);
 	objectFactory.registerObject<ResourceContainer>(SceneObjectType::RESOURCECONTAINER);
 	objectFactory.registerObject<ResourceContainer>(SceneObjectType::ENERGYGAS);
@@ -312,6 +315,7 @@ void ObjectManager::registerObjectTypes() {
 	objectFactory.registerObject<Component>(SceneObjectType::RANGEDWEAPONCOMPONENT);
 	objectFactory.registerObject<Component>(SceneObjectType::STRUCTURECOMPONENT);
 	objectFactory.registerObject<Component>(SceneObjectType::TISSUECOMPONENT);
+	objectFactory.registerObject<De10BarrelComponent>(SceneObjectType::DE10BARRELCOMPONENT);
 	objectFactory.registerObject<PowerupObject>(SceneObjectType::WEAPONPOWERUP);
 	objectFactory.registerObject<PowerupObject>(SceneObjectType::MELEEWEAPONPOWERUP);
 	objectFactory.registerObject<PowerupObject>(SceneObjectType::RANGEDWEAPONPOWERUP);

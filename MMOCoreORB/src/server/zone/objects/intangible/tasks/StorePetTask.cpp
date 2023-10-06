@@ -21,6 +21,13 @@ void StorePetTask::run() {
 	if (player == nullptr || pet == nullptr)
 		return;
 
+	ZoneServer* zoneServer = player->getZoneServer();
+
+	if (zoneServer == nullptr || zoneServer->isServerLoading()) {
+		schedule(10000 + System::random(5000));
+		return;
+	}
+
 	Locker locker(player);
 	Locker clocker(pet, player);
 
@@ -41,6 +48,7 @@ void StorePetTask::run() {
 		pet->setHAM(CreatureAttribute::MIND, 1);
 
 	pet->setPosture(CreaturePosture::UPRIGHT, true);
+	pet->clearState(CreatureState::SWIMMING);
 	pet->clearCombatState(true);
 	pet->setOblivious();
 	pet->storeFollowObject();

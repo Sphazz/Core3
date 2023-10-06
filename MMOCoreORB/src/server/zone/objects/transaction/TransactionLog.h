@@ -82,6 +82,7 @@ enum class TrxCode {
 	INSTANTBUY,                 // Instant Buy
 	LOTTERYDROID,               // Lottery Droid
 	LUASCRIPT,                  // LUA Script
+	MINED,                      // Resouces mined by installations
 	MISSIONCOMPLETE,            // Mission Completed Summary
 	NPCLOOTCLAIM,               // NPC Loot Claimed
 	PERMISSIONLIST,             // Permission List changes
@@ -131,6 +132,8 @@ class TransactionLog {
 	bool mCommitted = false;
 	bool mAborted = false;
 	bool mExportRelated = false;
+	bool mLogged = false;
+	int mMaxDepth = 4;
 	StringBuffer mError;
 	Vector3 mWorldPosition;
 	String mZoneName;
@@ -161,22 +164,8 @@ public:
 
 	TransactionLog(TrxCode code, SceneObject* dst, CAPTURE_CALLER_DECLARE)
 		: TransactionLog((SceneObject*)nullptr, dst, (SceneObject*)nullptr, code, false, file, function, line) {
-			switch (code) {
-				case TrxCode::COMBATSTATS:
-				case TrxCode::EXPERIENCE:
-				case TrxCode::MISSIONCOMPLETE:
-				case TrxCode::PLAYERLINKDEAD:
-				case TrxCode::PLAYERLOGGINGOUT:
-				case TrxCode::PLAYEROFFLINE:
-				case TrxCode::PLAYERONLINE:
-				case TrxCode::SKILLTRAININGSYSTEM:
-					mAutoCommit = true;
-					setType("stats");
-					break;
-
-				default:
-					mAutoCommit = false;
-					break;
+			if (!isStat(code)) {
+				mAutoCommit = false;
 			}
 	}
 
@@ -313,7 +302,18 @@ public:
 		return getVerbose();
 	}
 
+	void setMaxDepth(int maxDepth) {
+		mMaxDepth = maxDepth;
+	}
+
+	int getMaxDepth() const {
+		return mMaxDepth;
+	}
+
 	const String getTrxID() const {
+		if (!isEnabled())
+			return "disabled";
+
 		return String(mTransaction["trxId"].get<std::string>());
 	}
 
@@ -382,4 +382,28 @@ private:
 	void writeLog();
 
 	static const String trxCodeToString(TrxCode code);
+
+	static bool isStat(TrxCode code) {
+		switch (code) {
+			case TrxCode::COMBATSTATS:
+			case TrxCode::CORPSEEXPIRATION:
+			case TrxCode::CRAFTINGSESSION:
+			case TrxCode::DATABASECOMMIT:
+			case TrxCode::EXPERIENCE:
+			case TrxCode::JABBASPALACE:
+			case TrxCode::NEWBIETUTORIAL:
+			case TrxCode::PLAYERDIED:
+			case TrxCode::PLAYERLINKDEAD:
+			case TrxCode::PLAYERLOGGINGOUT:
+			case TrxCode::PLAYEROFFLINE:
+			case TrxCode::PLAYERONLINE:
+			case TrxCode::POISYSTEM:
+			case TrxCode::SKILLTRAININGSYSTEM:
+			case TrxCode::TESTACCOUNT:
+				return true;
+
+			default:
+				return false;
+		}
+	}
 };

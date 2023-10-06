@@ -1,10 +1,12 @@
 includeFile("default.lua")
-includeFile("escort.lua")
-includeFile("pet.lua")
-includeFile("static.lua")
+includeFile("cityPatrol.lua")
+includeFile("crackdown.lua")
 includeFile("deathWatch.lua")
 includeFile("enclaveSentinel.lua")
-includeFile("crackdown.lua")
+includeFile("escort.lua")
+includeFile("eventControl.lua")
+includeFile("pet.lua")
+includeFile("static.lua")
 includeFile("villageRaider.lua")
 
 customMap = {
@@ -25,6 +27,11 @@ customMap = {
 
 	{ "villageRaider", {
 		{AWARE, "awareVillageraider"}
+	}},
+
+	{ "cityPatrol", {
+		{ROOT, "rootCitypatrol"},
+		{IDLE, "idleCitypatrol"}
 	}},
 }
 
@@ -56,6 +63,7 @@ bitmaskLookup = {
 
 	{PET, {
 		{NONE, "rootPet"},
+		{ATTACK, "attackPet"},
 		{AWARE, "awarePet"},
 		{EQUIP, "equipPet"},
 		{IDLE, "idlePet"},
@@ -66,6 +74,7 @@ bitmaskLookup = {
 
 	{FACTION_PET, {
 		{NONE, "rootPet"},
+		{ATTACK, "attackPet"},
 		{AWARE, "awarePet"},
 		{EQUIP, "equipPet"},
 		{IDLE, "idlePet"},
@@ -84,6 +93,7 @@ bitmaskLookup = {
 	}},
 
 	{ESCORT, {
+		{AWARE, "awareEscort"},
 		{IDLE, "runEscort"},
 		{MOVE, "moveEscort"},
 		{TARGET, "targetDefault"}
@@ -104,6 +114,20 @@ bitmaskLookup = {
 
 	{NOAIAGGRO, {
 		{NONE, "rootStatic"}
+	}},
+
+	{SQUAD, {
+		{NONE, "rootCrackdown"},
+		{AWARE, "awareCrackdown"},
+		{IDLE, "idleCrackdown"},
+		{LOOKAT, "lookCrackdown"}
+	}},
+
+	{EVENTCONTROL, {
+		{NONE, "rootCrackdown"},
+		{AWARE, "awareCrackdown"},
+		{IDLE, "idleEventcontrol"},
+		{LOOKAT, "lookCrackdown"}
 	}},
 
 	{TEST, {

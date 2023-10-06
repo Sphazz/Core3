@@ -67,17 +67,15 @@ public:
 	void doAnimationsRange(CreatureObject* creature, CreatureObject* creatureTarget, int oid, float range) const {
 		String crc;
 
-		if (range < 10.0f) {
-			crc = "throw_grenade_near_healing";
-		}
-		else if (10.0f <= range && range < 20.0f) {
-			crc = "throw_grenade_medium_healing";
-		}
-		else {
-			crc = "throw_grenade_far_healing";
+		if (range < 20.0f) {
+			crc = "throw_grenade_near_healing_longrange";
+		} else if (range >= 20.0f && range < 40.0f) {
+			crc = "throw_grenade_medium_healing_longrange";
+		} else {
+			crc = "throw_grenade_far_healing_longrange";
 		}
 
-		CombatAction* action = new CombatAction(creature, creatureTarget,  crc.hashCode(), 1, 0L);
+		CombatAction* action = new CombatAction(creature, creatureTarget, crc.hashCode(), 1, 0L);
 		creature->broadcastMessage(action, true);
 	}
 
@@ -122,8 +120,6 @@ public:
 		if (!creatureTarget->hasDamage(CreatureAttribute::HEALTH) && !creatureTarget->hasDamage(CreatureAttribute::ACTION)) {
 			return false;
 		}
-
-		PlayerManager* playerManager = server->getPlayerManager();
 
 		if (creature != creatureTarget && !CollisionManager::checkLineOfSight(creature, creatureTarget)) {
 			return false;
@@ -427,6 +423,9 @@ public:
 			}
 		}
 
+		if (stimPack == nullptr)
+			return GENERALERROR;
+
 		int mindCostNew = creature->calculateCostAdjustment(CreatureAttribute::FOCUS, mindCost);
 
 		if (!canPerformSkill(creature, targetCreature, stimPack, mindCostNew))
@@ -434,8 +433,12 @@ public:
 
 		float rangeToCheck = 7;
 
-		if (stimPack->isRangedStimPack())
-			rangeToCheck = (cast<RangedStimPack*>(stimPack.get()))->getRange();
+		if (stimPack->isRangedStimPack()) {
+			float packRange = (cast<RangedStimPack*>(stimPack.get()))->getRange();
+			float healRange = (float)(creature->getSkillMod("healing_range") / 100.0f) * 14;
+
+			rangeToCheck = packRange + healRange;
+		}
 
 		if(!checkDistance(creature, targetCreature, rangeToCheck))
 			return TOOFAR;

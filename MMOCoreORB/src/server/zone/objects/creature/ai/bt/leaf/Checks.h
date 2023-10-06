@@ -63,7 +63,15 @@ enum CheckType {
 	CHECK_CHATDELAY,
 	CHECK_CALLFORHELP,
 	CHECK_ISHARVESTER,
-	CHECK_HASHARVESTTARGETS
+	CHECK_HASHARVESTTARGETS,
+	CHECK_ISCAMOUFLAGED,
+	CHECK_SHOULDREST,
+	CHECK_STOPRESTING,
+	CHECK_QUEUESIZE,
+	CHECK_ISESCORT,
+	CHECK_HASRANGEDWEAPON,
+	CHECK_HASMELEEWEAPON,
+	CHECK_ISSWIMMING
 };
 
 // template class to reduce repeated code. Do this instead of inheritance so we
@@ -137,6 +145,9 @@ template<> bool CheckFollowAggression::check(AiAgent* agent) const;
 
 typedef _Check<bool, CHECK_PROSPECTAGGRESSION> CheckProspectAggression;
 template<> bool CheckProspectAggression::check(AiAgent* agent) const;
+
+typedef _Check<bool, CHECK_ISCAMOUFLAGED> CheckIsCamouflaged;
+template<> bool CheckIsCamouflaged::check(AiAgent* agent) const;
 
 typedef _Check<uint32, CHECK_FOLLOWPOSTURE> CheckFollowPosture;
 template<> bool CheckFollowPosture::check(AiAgent* agent) const;
@@ -263,6 +274,27 @@ template<> bool CheckIsHarvester::check(AiAgent* agent) const;
 
 typedef _Check<bool, CHECK_HASHARVESTTARGETS> CheckHasHarvestTargets;
 template<> bool CheckHasHarvestTargets::check(AiAgent* agent) const;
+
+typedef _Check<bool, CHECK_SHOULDREST> CheckShouldRest;
+template<> bool CheckShouldRest::check(AiAgent* agent) const;
+
+typedef _Check<bool, CHECK_STOPRESTING> CheckStopResting;
+template<> bool CheckStopResting::check(AiAgent* agent) const;
+
+typedef _Check<bool, CHECK_QUEUESIZE> CheckQueueSize;
+template<> bool CheckQueueSize::check(AiAgent* agent) const;
+
+typedef _Check<bool, CHECK_ISESCORT> CheckIsEscort;
+template<> bool CheckIsEscort::check(AiAgent* agent) const;
+
+typedef _Check<bool, CHECK_HASRANGEDWEAPON> CheckHasRangedWeapon;
+template<> bool CheckHasRangedWeapon::check(AiAgent* agent) const;
+
+typedef _Check<bool, CHECK_HASMELEEWEAPON> CheckHasMeleeWeapon;
+template<> bool CheckHasMeleeWeapon::check(AiAgent* agent) const;
+
+typedef _Check<bool, CHECK_ISSWIMMING> CheckIsSwimming;
+template<> bool CheckIsSwimming::check(AiAgent* agent) const;
 
 }
 }

@@ -13,6 +13,7 @@ import server.zone.managers.creature.HealLairObserverEvent;
 include system.thread.atomic.AtomicInteger;
 
 class LairObserver extends SpawnObserver {
+	public static final int BABY_SPAWN_CHANCE = 500;
 
 	@dereferenced
 	protected AtomicInteger spawnNumber;
@@ -37,6 +38,7 @@ class LairObserver extends SpawnObserver {
 	public native void healLair(TangibleObject lair, TangibleObject attacker);
 	public abstract native void checkForHeal(TangibleObject lair, TangibleObject attacker, boolean forceNewUpdate = false);
 	public native void doAggro(TangibleObject lair, TangibleObject attacker, boolean allAttack = false);
+	public native void repopulateLair(TangibleObject lair);
 
 	public boolean isLairObserver() {
 		return true;

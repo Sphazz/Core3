@@ -81,7 +81,9 @@ void ThreatMap::addDamage(TangibleObject* target, uint32 damage, String xp) {
 
 		if (tarCreo != nullptr) {
 			WeaponObject* weapon = tarCreo->getWeapon();
-			xpToAward = weapon->getXpType();
+
+			if (weapon != nullptr)
+				xpToAward = weapon->getXpType();
 		}
 	} else {
 		xpToAward = xp;
@@ -316,7 +318,7 @@ CreatureObject* ThreatMap::getHighestDamageGroupLeader() {
 	for (int i = 0; i < size(); ++i) {
 		ThreatMapEntry* entry = &elementAt(i).getValue();
 
-		uint32 totalDamage = entry->getTotalDamage();
+		uint32 totalDamage = entry->getLootDamage();
 
 		TangibleObject* tano = elementAt(i).getKey();
 

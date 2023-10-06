@@ -111,9 +111,6 @@ NabooKaadaraScreenPlay = CityScreenPlay:new {
 		{"contractor",60,4.0,1.0,4.3,-165,1741477, "npc_accusing"},
 		{"bartender", 1, 19.5, 1.6, 12.6, 180, 1741478, ""},
 
-		--cantina
-		{"bartender", 1, 2.9, -0.9, 3.4, 2, 64, "neutral"},
-
 		--starport interior
 		{"chassis_dealer",60,6.3,0.6,65.8,-60,1741539, "neutral"},
 
@@ -238,7 +235,7 @@ function NabooKaadaraScreenPlay:spawnMobiles()
 	spawnMobile(self.planet, "skaak_tipper_crook", 300, getRandomNumber(20) + 5018, -191.4, getRandomNumber(20) + 6591, getRandomNumber(180) + 90, 0)
 
 	--creatures
-	spawnMobile(self.planet, "nuna", 300, getRandomNumber(20) + 5346.5, -205.4, getRandomNumber(12) + 6888.5, getRandomNumber(360), 0)
+	--[[spawnMobile(self.planet, "nuna", 300, getRandomNumber(20) + 5346.5, -205.4, getRandomNumber(12) + 6888.5, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "nuna", 300, getRandomNumber(20) + 5346.5, -205.4, getRandomNumber(12) + 6888.5, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "nuna", 300, getRandomNumber(20) + 5346.5, -205.4, getRandomNumber(12) + 6888.5, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "nuna", 300, getRandomNumber(20) + 5346.5, -205.4, getRandomNumber(12) + 6888.5, getRandomNumber(360), 0)
@@ -299,7 +296,7 @@ function NabooKaadaraScreenPlay:spawnMobiles()
 	spawnMobile(self.planet, "nightspider", 300, getRandomNumber(20) + 5535.6, -193.9, getRandomNumber(20) + 6745, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "nightspider", 300, getRandomNumber(20) + 5535.6, -193.9, getRandomNumber(20) + 6745, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "nightspider", 300, getRandomNumber(20) + 5535.6, -193.9, getRandomNumber(20) + 6745, getRandomNumber(360), 0)
-	spawnMobile(self.planet, "nightspider", 300, getRandomNumber(20) + 5535.6, -193.9, getRandomNumber(20) + 6745, getRandomNumber(360), 0)
+	spawnMobile(self.planet, "nightspider", 300, getRandomNumber(20) + 5535.6, -193.9, getRandomNumber(20) + 6745, getRandomNumber(360), 0)]]
 
 	local pNpc = spawnMobile(self.planet, "junk_dealer", 0, 5149.79, -192, 6745.73, -72, 0)
 	if pNpc ~= nil then

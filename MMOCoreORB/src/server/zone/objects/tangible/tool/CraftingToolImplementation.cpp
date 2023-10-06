@@ -78,7 +78,7 @@ int CraftingToolImplementation::handleObjectMenuSelect(
 				return 1;
 			}
 
-			if (inventory != nullptr && inventory->getContainerObjectsSize() < 80) {
+			if (inventory != nullptr && !(inventory->getContainerVolumeLimit() <= (inventory->getCountableObjectsRecursive() - 1))) {
 				playerCreature->sendSystemMessage("@system_msg:prototype_transferred");
 				inventory->transferObject(prototype, -1, true);
 				status = "@crafting:tool_status_ready";
@@ -104,6 +104,10 @@ void CraftingToolImplementation::fillAttributeList(AttributeListMessage* alm,
 
 	if (forceCriticalExperiment > 0)
 		alm->insertAttribute("@crafting:crit_experiment", forceCriticalExperiment);
+
+	if (object == nullptr) {
+		return;
+	}
 
 	Reference<CraftingSession*> session = object->getActiveSession(SessionFacadeType::CRAFTING).castTo<CraftingSession*>();
 	if(session == nullptr && getParent() != nullptr) {

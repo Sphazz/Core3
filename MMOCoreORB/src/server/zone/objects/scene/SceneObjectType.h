@@ -71,6 +71,7 @@ public:
 	const static int TRAINERCREATURE = 0x40A;
 	const static int INFORMANTCREATURE = 0x40D;
 	const static int VENDORCREATURE = 0x40E;
+	const static int HELPERDROIDCREATURE = 0x40F;
 	/// End not in client ************
 
 	const static int INTANGIBLE = 0x800;  // DATA
@@ -99,6 +100,7 @@ public:
 	/// Not in client **********
 	const static int GARAGEINSTALLATION = 0x1006;
 	const static int SHUTTLEINSTALLATION = 0x1007;
+	const static int COVERTSCANNER = 0x1008;
 	/// End **************
 
 	const static int TANGIBLE = 0x2000;  // MISC
@@ -163,6 +165,7 @@ public:
 	const static int FSCSOBJECT = 0x2039;
 	const static int FSBUFFITEM = 0x203A;
 	const static int CONTRACTCRATE = 0x203B;
+	const static int DEADEYEPROTOTYPE = 0x203C;
 	/// End Not in client **************
 
 	const static int TERMINAL = 0x4000;
@@ -247,6 +250,10 @@ public:
 	const static int LIGHTSABERCRYSTAL = 0x4000C;
 	const static int COMMUNITYCRAFTINGCOMPONENT = 0x4000D;
 	const static int DNACOMPONENT = 0x4000E;
+
+	// Not in client ************
+	const static int DE10BARRELCOMPONENT = 0x4000F;
+	// **************************
 
 	const static int WEAPONPOWERUP = 0x80000;
 	const static int MELEEWEAPONPOWERUP = 0x80001;

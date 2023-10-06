@@ -538,8 +538,10 @@ bool PlayerCreationManager::createCharacter(ClientCreateCharacterCallback* callb
 		lastValidatedPosition->update(playerCreature);
 
 		ghost->setBiography(bio);
-
 		ghost->setLanguageID(playerTemplate->getDefaultLanguage());
+
+		Time now;
+		ghost->setBirthDate(now.getTime());
 	}
 
 	ClientCreateCharacterSuccess* msg = new ClientCreateCharacterSuccess(
@@ -837,8 +839,7 @@ void PlayerCreationManager::addHair(CreatureObject* creature,
 
 	data.parseFromClientString(hairCustomization);
 
-	if (ImageDesignManager::validateCustomizationString(&data,
-			appearanceFilename, -1))
+	if (ImageDesignManager::validateCustomizationString(&data, appearanceFilename))
 		tanoHair->setCustomizationString(hairCustomization);
 
 	creature->transferObject(tanoHair, 4);
@@ -851,8 +852,7 @@ void PlayerCreationManager::addCustomization(CreatureObject* creature,
 
 	data.parseFromClientString(customizationString);
 
-	if (ImageDesignManager::validateCustomizationString(&data,
-			appearanceFilename, -1))
+	if (ImageDesignManager::validateCustomizationString(&data, appearanceFilename))
 		creature->setCustomizationString(customizationString);
 }
 

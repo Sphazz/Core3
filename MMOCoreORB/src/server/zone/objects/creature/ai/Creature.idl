@@ -61,11 +61,6 @@ class Creature extends AiAgent {
 		dnaSampleCount++;
 	}
 
-	@dirty
-	public boolean isCamouflaged(CreatureObject target) {
-		return (isScentMasked(target) || isConcealed(target)) && isAggressiveTo(target);
-	}
-
 	@local
 	@dirty
 	public native void fillObjectMenuResponse(ObjectMenuResponse menuResponse, CreatureObject player);
@@ -88,8 +83,6 @@ class Creature extends AiAgent {
 
 	@local
 	public native void loadTemplateDataForBaby(CreatureTemplate templateData);
-
-	public native void scheduleDespawn();
 
 	public native boolean hasOrganics();
 
@@ -242,5 +235,8 @@ class Creature extends AiAgent {
 
 		return super.npcTemplate.getLevel();
 	}
+
+	@read
+	public native boolean hasBeenMilked();
 }
 

@@ -16,6 +16,9 @@
 #include "server/zone/Zone.h"
 #include "server/zone/objects/region/CityRegion.h"
 #include "server/zone/objects/player/sessions/SlicingSession.h"
+#include "server/zone/objects/player/sui/listbox/SuiListBox.h"
+#include "server/zone/objects/player/sui/callbacks/EnclaveCouncilRankSuiCallback.h"
+#include "server/zone/managers/stringid/StringIdManager.h"
 
 const char LuaPlayerObject::className[] = "LuaPlayerObject";
 
@@ -50,6 +53,16 @@ Luna<LuaPlayerObject>::RegType LuaPlayerObject::Register[] = {
 		{ "setJediState", &LuaPlayerObject::setJediState },
 		{ "getJediState", &LuaPlayerObject::getJediState },
 		{ "isOnline", &LuaPlayerObject::isOnline },
+		{ "activateJournalQuest", &LuaPlayerObject::activateJournalQuest },
+		{ "completeJournalQuest", &LuaPlayerObject::completeJournalQuest },
+		{ "clearJournalQuest", &LuaPlayerObject::clearJournalQuest },
+		{ "activateJournalQuestTask", &LuaPlayerObject::activateJournalQuestTask },
+		{ "completeJournalQuestTask", &LuaPlayerObject::completeJournalQuestTask },
+		{ "clearJournalQuestTask", &LuaPlayerObject::clearJournalQuestTask },
+		{ "isJournalQuestActive", &LuaPlayerObject::isJournalQuestActive },
+		{ "isJournalQuestComplete", &LuaPlayerObject::isJournalQuestComplete },
+		{ "isJournalQuestTaskActive", &LuaPlayerObject::isJournalQuestTaskActive },
+		{ "isJournalQuestTaskComplete", &LuaPlayerObject::isJournalQuestTaskComplete },
 		{ "setActiveQuestsBit", &LuaPlayerObject::setActiveQuestsBit },
 		{ "clearActiveQuestsBit", &LuaPlayerObject::clearActiveQuestsBit },
 		{ "hasActiveQuestBitSet", &LuaPlayerObject::hasActiveQuestBitSet },
@@ -79,10 +92,14 @@ Luna<LuaPlayerObject>::RegType LuaPlayerObject::Register[] = {
 		{ "setFrsRank", &LuaPlayerObject::setFrsRank },
 		{ "getFrsRank", &LuaPlayerObject::getFrsRank },
 		{ "getFrsCouncil", &LuaPlayerObject::getFrsCouncil },
+		{ "showCouncilRank", &LuaPlayerObject::showCouncilRank },
 		{ "startSlicingSession", &LuaPlayerObject::startSlicingSession },
 		{ "setVisibility", &LuaPlayerObject::setVisibility },
 		{ "getPlayedTimeString", &LuaPlayerObject::getPlayedTimeString },
 		{ "getAccountID", &LuaPlayerObject::getAccountID },
+		{ "hasPvpTef", &LuaPlayerObject::hasPvpTef },
+		{ "hasGcwTef", &LuaPlayerObject::hasGcwTef },
+		{ "getPvpRating", &LuaPlayerObject::getPvpRating },
 		{ 0, 0 }
 };
 
@@ -411,6 +428,109 @@ int LuaPlayerObject::isOnline(lua_State* L) {
 	return 1;
 }
 
+int LuaPlayerObject::activateJournalQuest(lua_State* L) {
+	int questCrc = lua_tointeger(L, -2);
+	bool notify = lua_toboolean(L, -1);
+
+	Locker locker(realObject);
+
+	realObject->activateJournalQuest(questCrc, notify);
+
+	return 0;
+}
+
+int LuaPlayerObject::completeJournalQuest(lua_State* L) {
+	int questCrc = lua_tointeger(L, -2);
+	bool notify = lua_toboolean(L, -1);
+
+	Locker locker(realObject);
+
+	realObject->completeJournalQuest(questCrc, notify);
+
+	return 0;
+}
+
+int LuaPlayerObject::clearJournalQuest(lua_State* L) {
+	int questCrc = lua_tointeger(L, -2);
+	bool notify = lua_toboolean(L, -1);
+
+	Locker locker(realObject);
+
+	realObject->clearJournalQuest(questCrc, notify);
+
+	return 0;
+}
+
+int LuaPlayerObject::activateJournalQuestTask(lua_State* L) {
+	int questCrc = lua_tointeger(L, -3);
+	int task = lua_tointeger(L, -2);
+	bool notify = lua_toboolean(L, -1);
+
+	Locker locker(realObject);
+
+	realObject->activateJournalQuestTask(questCrc, task, notify);
+
+	return 0;
+}
+
+int LuaPlayerObject::completeJournalQuestTask(lua_State* L) {
+	int questCrc = lua_tointeger(L, -3);
+	int task = lua_tointeger(L, -2);
+	bool notify = lua_toboolean(L, -1);
+
+	Locker locker(realObject);
+
+	realObject->completeJournalQuestTask(questCrc, task, notify);
+
+	return 0;
+}
+
+int LuaPlayerObject::clearJournalQuestTask(lua_State* L) {
+	int questCrc = lua_tointeger(L, -3);
+	int task = lua_tointeger(L, -2);
+	bool notify = lua_toboolean(L, -1);
+
+	Locker locker(realObject);
+
+	realObject->clearJournalQuestTask(questCrc, task, notify);
+
+	return 0;
+}
+
+int LuaPlayerObject::isJournalQuestActive(lua_State* L) {
+	int questCrc = lua_tointeger(L, -1);
+
+	lua_pushboolean(L, realObject->isJournalQuestActive(questCrc));
+
+	return 1;
+}
+
+int LuaPlayerObject::isJournalQuestComplete(lua_State* L) {
+	int questCrc = lua_tointeger(L, -1);
+
+	lua_pushboolean(L, realObject->isJournalQuestComplete(questCrc));
+
+	return 1;
+}
+
+int LuaPlayerObject::isJournalQuestTaskActive(lua_State* L) {
+	int questCrc = lua_tointeger(L, -2);
+	int task = lua_tointeger(L, -1);
+
+	lua_pushboolean(L, realObject->isJournalQuestTaskActive(questCrc, task));
+
+	return 1;
+}
+
+int LuaPlayerObject::isJournalQuestTaskComplete(lua_State* L) {
+	int questCrc = lua_tointeger(L, -2);
+	int task = lua_tointeger(L, -1);
+
+	lua_pushboolean(L, realObject->isJournalQuestTaskComplete(questCrc, task));
+
+	return 1;
+}
+
 int LuaPlayerObject::setActiveQuestsBit(lua_State* L) {
 	int quest = lua_tointeger(L, -2);
 	byte value = lua_tointeger(L, -1);
@@ -711,6 +831,42 @@ int LuaPlayerObject::getFrsCouncil(lua_State* L) {
 	return 1;
 }
 
+int LuaPlayerObject::showCouncilRank(lua_State* L) {
+	int council = lua_tointeger(L, -1);
+
+	ManagedReference<CreatureObject*> player = realObject->getParentRecursively(SceneObjectType::PLAYERCREATURE).castTo<CreatureObject*>();
+
+	if (player == nullptr)
+		return 0;
+
+	auto zoneServer = player->getZoneServer();
+
+	if (zoneServer == nullptr)
+		return 0;
+
+	Locker lock(realObject);
+
+	ManagedReference<SuiListBox*> box = new SuiListBox(player, SuiWindowType::ENCLAVE_VOTING, SuiListBox::HANDLETWOBUTTON);
+
+	box->setCallback(new EnclaveCouncilRankSuiCallback(zoneServer, council));
+	box->setPromptText("Select the rank whose members you wish to view.");
+	box->setPromptTitle("@force_rank:rank_selection"); // Rank Selection
+	box->setUsingObject(player);
+	box->setOkButton(true, "@ok");
+	box->setCancelButton(true, "@cancel");
+
+	for (int i = 1; i < 12; i++) {
+		String stfRank = "@force_rank:rank" + String::valueOf(i);
+		String rankString = StringIdManager::instance()->getStringId(stfRank.hashCode()).toString();
+		box->addMenuItem(rankString);
+	}
+
+	realObject->addSuiBox(box);
+	player->sendMessage(box->generateMessage());
+
+	return 0;
+}
+
 int LuaPlayerObject::startSlicingSession(lua_State* L) {
 	TangibleObject* objToSlice = (TangibleObject*) lua_touserdata(L, -2);
 	bool isKeypadSlice = lua_toboolean(L, -1);
@@ -756,6 +912,24 @@ int LuaPlayerObject::getAccountID(lua_State* L) {
 	Locker locker(realObject);
 
 	lua_pushinteger(L, realObject->getAccountID());
+
+	return 1;
+}
+
+int LuaPlayerObject::hasPvpTef(lua_State* L) {
+	lua_pushboolean(L, realObject->hasPvpTef());
+
+	return 1;
+}
+
+int LuaPlayerObject::hasGcwTef(lua_State* L) {
+	lua_pushboolean(L, realObject->hasGcwTef());
+
+	return 1;
+}
+
+int LuaPlayerObject::getPvpRating(lua_State* L) {
+	lua_pushinteger(L, realObject->getPvpRating());
 
 	return 1;
 }

@@ -25,7 +25,7 @@ NabooTheedScreenPlay = CityScreenPlay:new {
 		{"naboo_police_officer", "naboo_police_officer", -5544.22,6,4232.32,267.981,0, "npc_imperial", "", true},
 	},
 
-	patrolNpcs = {"businessman_patrol", "commoner_fat_patrol", "commoner_naboo_patrol", "commoner_old_patrol", "commoner_patrol", "gambler", "naboo_nomad", "noble_patrol", "official_patrol", "scientist_patrol"},
+	patrolNpcs = {"businessman_patrol", "commoner_fat_patrol", "commoner_naboo_patrol", "commoner_old_patrol", "commoner_patrol", "gambler_patrol", "naboo_nomad_patrol", "noble_patrol", "official_patrol", "scientist_patrol"},
 
 	patrolMobiles = {
 		--{patrolPoints, template, x, z, y, direction, cell, mood, combatPatrol},
@@ -129,6 +129,7 @@ NabooTheedScreenPlay = CityScreenPlay:new {
 		{"trainer_1hsword",0,-5565,6,4304,84,0, ""},
 		{"trainer_2hsword",0,-5382,6,4327,180,0, ""},
 		{"trainer_architect",0,-4931,6,4020,39,0, ""},
+		{"trainer_armorsmith", 0, -12.7, 1.1, -0.7, 178, 1692092, ""},
 		{"trainer_artisan",0,-4946,6,4131,138,0, ""},
 		{"trainer_artisan",0,-5996.85,6,4287.56,69,0, ""},
 		{"trainer_bioengineer",0,-5017,6,4009,0,0, ""},
@@ -136,6 +137,9 @@ NabooTheedScreenPlay = CityScreenPlay:new {
 		{"trainer_brawler",0,-4858,6,4087,-47,0, ""},
 		{"trainer_brawler",0,-4684,6,3947,-71,0, ""},
 		{"trainer_chef",0,-4877,6,4065,0,0, ""},
+		{"trainer_combatmedic", 0, -16.8, 0.3, 9.7, 225, 1697364, ""},
+		{"trainer_combatmedic", 0, 30.6, 7.3, 6.0, 280, 1697368, ""},
+		{"trainer_doctor",0,17.4,0.3,0.8, 15, 1697360, ""},
 		{"trainer_doctor",0,-5038,6,4146,180,0, ""},
 		{"trainer_entertainer",0,-4840,6,4082,66,0, ""},
 		{"trainer_entertainer",0,-5834,6,4241,104,0, ""},
@@ -155,8 +159,8 @@ NabooTheedScreenPlay = CityScreenPlay:new {
 		--Hotel
 		{"businessman",60,15.5641,1.28309,-2.37071,135.005,1677395, "worried"},
 		{"businessman",60,-4.2087,0.999986,2.15452,179.993,1677394, "conversation"},
-		{"mercenary",60,4.2931,1,-7.62435,360.011,1677394, "angry"},
-		{"mercenary",60,-11.7266,1.6,-16.4722,0,1677399, "nervous"},
+		{"mercenary",300,4.2931,1,-7.62435,360.011,1677394, "angry"},
+		{"mercenary",300,-11.7266,1.6,-16.4722,0,1677399, "nervous"},
 		{"noble",300,16.6641,1.28309,-3.47071,360.011,1677395, "conversation"},
 		{"corellia_times_investigator",300,-11.7266,1.6,-15.4722,180.001,1677399, "conversation"},
 		{"comm_operator",300,16.6641,1.28309,-2.37071,180.007,1677395, ""},
@@ -166,7 +170,7 @@ NabooTheedScreenPlay = CityScreenPlay:new {
 		{"noble",300,-22.6115,1.6,-11.4739,0,1677400, "conversation"},
 
 		--Guild Hall/Theater
-		{"mercenary",60,-6.34119,0.6,-9.37965,360.011,5475480, "neutral"},
+		{"mercenary",300,-6.34119,0.6,-9.37965,360.011,5475480, "neutral"},
 		{"comm_operator",300,-6.34119,0.6,-8.27965,180.012,5475480, "neutral"},
 		{"commoner_technician",60,22.86,2.1,58.4,0,5475486, "worried"},
 		{"etheli_drenel",60,12.4716,2.31216,25.6024,180.001,5475485, "conversation"},
@@ -238,6 +242,7 @@ function NabooTheedScreenPlay:spawnMobiles()
 	end
 
 	--Creatures
+	--[[
 	spawnMobile(self.planet, "flewt", 300, getRandomNumber(10) + -5195, 6, getRandomNumber(10) + 3988, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "flewt", 300, getRandomNumber(10) + -5200, 6, getRandomNumber(10) + 3997, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "flewt", 300, getRandomNumber(10) + -5207, 6, getRandomNumber(10) + 3992, getRandomNumber(360), 0)
@@ -307,13 +312,14 @@ function NabooTheedScreenPlay:spawnMobiles()
 	spawnMobile(self.planet, "mott_calf", 300, getRandomNumber(10) + -4946.78, 6, getRandomNumber(10) + 3650.67, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "mott_calf", 300, getRandomNumber(10) + -4943.30, 6, getRandomNumber(10) + 3652.44, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "mott_calf", 300, getRandomNumber(10) + -4939.35, 6, getRandomNumber(10) + 3653.82, getRandomNumber(360), 0)
-
+	]]
 	--Cantina
 	pNpc = spawnMobile(self.planet, "junk_dealer", 0, -5.8, -0.9, -20.9, -52, 96)
 	if pNpc ~= nil then
 		AiAgent(pNpc):setConvoTemplate("junkDealerArmsConvoTemplate")
 	end
 
+	--[[
 	--double waterfall island near Palace
 	spawnMobile(self.planet, "mott_calf", 600, getRandomNumber(10) + -5201.0, 6, getRandomNumber(10) + 4542.6, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "mott_calf", 600, getRandomNumber(10) + -5195.0, 6, getRandomNumber(10) + 4537.4, getRandomNumber(360), 0)
@@ -321,4 +327,5 @@ function NabooTheedScreenPlay:spawnMobiles()
 	spawnMobile(self.planet, "flewt", 300, getRandomNumber(10) + -5176.4, 6, getRandomNumber(10) + 4612.2, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "flewt", 300, getRandomNumber(10) + -5161.3, 6, getRandomNumber(10) + 4601.7, getRandomNumber(360), 0)
 	spawnMobile(self.planet, "flewt", 300, getRandomNumber(10) + -5193.3, 6, getRandomNumber(10) + 4610.0, getRandomNumber(360), 0)
+	]]
 end

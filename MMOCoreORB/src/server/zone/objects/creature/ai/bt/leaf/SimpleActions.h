@@ -95,7 +95,10 @@ public:
 	}
 
 	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
-		agent->clearQueueActions();
+		if (!agent->isInCombat())
+			return FAILURE;
+
+		agent->clearQueueActions(true);
 		agent->clearCombatState(clearDefenders);
 
 		return !agent->isInCombat() ? SUCCESS : FAILURE;
@@ -128,10 +131,11 @@ public:
 
 		uint32 weapon = agent->readBlackboard("stagedWeapon").get<uint32>();
 
-		if (weapon == DataVal::PRIMARYWEAPON)
+		if (weapon == DataVal::PRIMARYWEAPON) {
 			agent->equipPrimaryWeapon();
-		else if (weapon == DataVal::SECONDARYWEAPON)
+		} else if (weapon == DataVal::SECONDARYWEAPON) {
 			agent->equipSecondaryWeapon();
+		}
 
 		return SUCCESS;
 	}
@@ -246,7 +250,11 @@ public:
 	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
 		//agent->info("SelectAttack::execute", true);
 
-		WeaponObject* weapon = agent->getWeapon();
+		if (agent->isDead()) {
+			return FAILURE;
+		}
+
+		WeaponObject* weapon = agent->getCurrentWeapon();
 
 		if (weapon != nullptr && weapon->getAttackType() ==  SharedWeaponObjectTemplate::FORCEATTACK) {
 			return agent->selectSpecialAttack(-1) ? SUCCESS : FAILURE;
@@ -323,18 +331,23 @@ public:
 
 class FindNextPosition : public Behavior {
 public:
-	FindNextPosition(const String& className, const uint32 id, const LuaObject& args)
-			: Behavior(className, id, args) {
+	FindNextPosition(const String& className, const uint32 id, const LuaObject& args) : Behavior(className, id, args) {
 	}
 
-	FindNextPosition(const FindNextPosition& a)
-			: Behavior(a) {
+	FindNextPosition(const FindNextPosition& a) : Behavior(a) {
 	}
 
 	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
 		DataVal mode = DataVal::WALK;
+
 		if (agent->peekBlackboard("moveMode"))
 			mode = static_cast<DataVal>(agent->readBlackboard("moveMode").get<uint32>());
+
+		uint32 movementState = agent->getMovementState();
+
+		if (movementState == AiAgent::FOLLOWING) {
+			return agent->findNextPosition(agent->getMaxDistance(), mode == DataVal::WALK) ? SUCCESS : FAILURE;
+		}
 
 		return agent->findNextPosition(agent->getMaxDistance(), mode == DataVal::WALK) ? RUNNING : SUCCESS;
 	}
@@ -353,21 +366,6 @@ public:
 	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
 		agent->leash();
 		return SUCCESS;
-	}
-};
-
-class CompleteMove : public Behavior {
-public:
-	CompleteMove(const String& className, const uint32 id, const LuaObject& args)
-			: Behavior(className, id, args) {
-	}
-
-	CompleteMove(const CompleteMove& a)
-			: Behavior(a) {
-	}
-
-	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
-		return agent->completeMove() ? SUCCESS : FAILURE;
 	}
 };
 
@@ -458,13 +456,21 @@ public:
 			delay->addMiliTime(newDelay);
 		}
 
-		if (show) {
+		if (agent->getPosture() != CreaturePosture::UPRIGHT)
+			agent->setPosture(CreaturePosture::UPRIGHT, true);
+
+		ManagedReference<SceneObject*> target = nullptr;
+
+		if (agent->peekBlackboard("targetProspect"))
+			target = agent->readBlackboard("targetProspect").get<ManagedReference<SceneObject*> >().get();
+
+		if (show && target != nullptr && target->isPlayerCreature()) {
 			agent->showFlyText("npc_reaction/flytext", "alert", 255, 0, 0);
 
-			if (agent->isNpc() && agent->getFaction() > 0)
+			if (agent->isNpc() && agent->getFaction() > 0 && agent->isAggressiveTo(target->asCreatureObject()))
 				agent->doAnimation("search");
 
-			agent->sendReactionChat(nullptr, ReactionManager::ALERT);
+			agent->sendReactionChat(target, ReactionManager::ALERT);
 		}
 
 		return SUCCESS;
@@ -509,7 +515,7 @@ public:
 			return FAILURE;
 
 		if (System::random(100) > 98 && !agent->isDizzied()) {
-			WeaponObject* weapon = agent->getWeapon();
+			WeaponObject* weapon = agent->getCurrentWeapon();
 
 			if (weapon == nullptr || !weapon->isRangedWeapon())
 				return FAILURE;
@@ -570,7 +576,10 @@ public:
 		if (agent->peekBlackboard("targetProspect"))
 			target = agent->readBlackboard("targetProspect").get<ManagedReference<SceneObject*> >().get();
 
-		if (target == nullptr || !target->isPlayerCreature())
+		if (target == nullptr)
+			return FAILURE;
+
+		if (!agent->checkCooldownRecovery("crackdown_scan"))
 			return FAILURE;
 
 		Zone* zone = agent->getZone();
@@ -626,18 +635,25 @@ public:
 		}
 
 		bool healExecuted = false;
+		float range = 7.5f;
+		uint32 healerType = agent->getHealerType().toLowerCase().hashCode();
+
+		if (healerType == STRING_HASHCODE("force")) {
+			range = 32.f;
+		}
 
 		if (healTarget->getHAM(CreatureAttribute::HEALTH) < healTarget->getMaxHAM(CreatureAttribute::HEALTH) || healTarget->getHAM(CreatureAttribute::ACTION) < healTarget->getMaxHAM(CreatureAttribute::ACTION)) {
+			agent->clearQueueActions(true);
+
 			if (healTarget == agent) {
 				agent->healTarget(healTarget);
 				healExecuted = true;
 			} else {
-				if (agent->isInRange(healTarget, 2.0f)) {
+				if (agent->isInRange(healTarget, range)) {
 					Locker clocker(healTarget, agent);
 
 					agent->healTarget(healTarget);
 
-					agent->setMovementState(AiAgent::FOLLOWING);
 					healExecuted = true;
 				}
 			}
@@ -706,7 +722,8 @@ public:
 		if (sqrDist > 35 * 35 || sqrDist < 25 * 25) // Between 35m and 25m
 			return FAILURE;
 
-		agent->faceObject(target, true);
+		if (!(agent->getCreatureBitmask() & CreatureFlag::STATIC))
+			agent->faceObject(target, true);
 
 		if (target->isFacingObject(agent))
 			agent->sendReactionChat(target, ReactionManager::HI);
@@ -742,63 +759,99 @@ public:
 
 	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
 		ManagedReference<SceneObject*> ally = nullptr;
-		ManagedReference<SceneObject*> target = nullptr;
 
 		if (agent->peekBlackboard("allyProspect"))
 			ally = agent->readBlackboard("allyProspect").get<ManagedReference<SceneObject*> >().get();
 
-		if (agent->peekBlackboard("targetProspect"))
-			target = agent->readBlackboard("targetProspect").get<ManagedReference<SceneObject*> >().get();
-
-		if (ally == nullptr || target == nullptr)
-			return FAILURE;
-
-		CreatureObject* allyCreo = ally->asCreatureObject();
-
-		if (allyCreo == nullptr || allyCreo->isDead()) {
+		if (ally == nullptr) {
 			agent->eraseBlackboard("allyProspect");
 			return FAILURE;
 		}
 
-		Locker lock(allyCreo, agent);
+		CreatureObject* allyCreo = ally->asCreatureObject();
 
-		Vector3 agentPosition = agent->getPosition();
-		Vector3 allyPosition = allyCreo->getPosition();
-		int sqrDistance = agentPosition.squaredDistanceTo(allyPosition);
-
-		if (sqrDistance > 50 * 50) {
+		if (allyCreo == nullptr || allyCreo->isDead() || !allyCreo->isAiAgent()) {
+			agent->eraseBlackboard("allyProspect");
 			return FAILURE;
 		}
 
-		agent->clearPatrolPoints();
-		agent->setMovementState(AiAgent::EVADING);
-		agent->setNextPosition(allyPosition.getX(), allyPosition.getZ(), allyPosition.getY(), allyCreo->getParent().get().castTo<CellObject*>());
+		Locker clock(allyCreo, agent);
 
+		Vector3 agentPosition = agent->getPosition();
+		Vector3 allyPosition = allyCreo->getPosition();
+
+		float sqrDistance = agentPosition.squaredDistanceTo(allyPosition);
+
+		if (sqrDistance > 50 * 50) {
+			agent->eraseBlackboard("allyProspect");
+			return FAILURE;
+		}
+
+#ifdef DEBUG_CALLFORHELP
+		ZoneServer* zoneServer = agent->getZoneServer();
+
+		ChatManager* chatManager = nullptr;
+
+		if (zoneServer != nullptr)
+			chatManager = zoneServer->getChatManager();
+#endif
+
+		agent->clearPatrolPoints();
 		agent->faceObject(ally, true);
 
-		Time* callForHelp = agent->getLastCallForHelp();
+		agent->setMovementState(AiAgent::NOTIFY_ALLY);
+		agent->setNextPosition(allyPosition.getX(), allyPosition.getZ(), allyPosition.getY(), allyCreo->getParent().get().castTo<CellObject*>());
 
-		if (callForHelp == nullptr)
+#ifdef DEBUG_CALLFORHELP
+		if (chatManager != nullptr)
+			chatManager->broadcastChatMessage(agent, "Heading to notify my ally", 0, 0, agent->getMoodID());
+#endif
+
+		AiAgent* allyAgent = allyCreo->asAiAgent();
+
+		if (allyAgent == nullptr) {
+			agent->eraseBlackboard("allyProspect");
 			return FAILURE;
+		}
+
+		Time* allyTime = allyAgent->getLastCallForHelp();
+
+		if (allyTime != nullptr) {
+			allyTime->updateToCurrentTime();
+			allyTime->addMiliTime(90 * 1000);
+		}
 
 		if (sqrDistance < 10 * 10) {
+			Time* callForHelp = agent->getLastCallForHelp();
+
+			if (callForHelp == nullptr)
+				return FAILURE;
+
 			callForHelp->updateToCurrentTime();
 			callForHelp->addMiliTime(90 * 1000);
 
-			Locker aLock(target);
+			ManagedReference<SceneObject*> enemyTarget = nullptr;
 
-			if (target->isAiAgent()) {
-				Time* allyCall = target->asAiAgent()->getLastCallForHelp();
+			if (agent->peekBlackboard("targetProspect"))
+				enemyTarget = agent->readBlackboard("targetProspect").get<ManagedReference<SceneObject*> >().get();
 
-				if (allyCall != nullptr) {
-					allyCall->updateToCurrentTime();
-					allyCall->addMiliTime(90 * 1000);
-				}
+			if (enemyTarget != nullptr) {
+
+#ifdef DEBUG_CALLFORHELP
+				if (chatManager != nullptr)
+					chatManager->broadcastChatMessage(agent, "Notifying my ally", 0, 0, agent->getMoodID());
+#endif
+
+				Core::getTaskManager()->executeTask([allyAgent, enemyTarget] () {
+					Locker lock(allyAgent);
+					Locker enlocker(enemyTarget, allyAgent);
+
+					allyAgent->addDefender(enemyTarget);
+
+				}, "CallForHelpLambda");
 			}
 
-			agent->notifyPackMobs(target);
-
-			agent->eraseBlackboard("allyTarget");
+			agent->eraseBlackboard("allyProspect");
 			agent->setMovementState(AiAgent::FOLLOWING);
 		}
 
@@ -812,6 +865,113 @@ public:
 		return msg.toString();
 	}
 };
+
+class Rest : public Behavior {
+public:
+	Rest(const String& className, const uint32 id, const LuaObject& args) : Behavior(className, id, args) {
+	}
+
+	Rest(const Rest& a) : Behavior(a) {
+	}
+
+	Rest& operator=(const Rest& a) {
+		if (this == &a)
+			return *this;
+		Behavior::operator=(a);
+		return *this;
+	}
+
+	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
+		if (agent == nullptr)
+			return FAILURE;
+
+		Time* restDelay = agent->getRestDelay();
+
+		if (restDelay == nullptr) {
+			return FAILURE;
+		}
+
+		// Wait 5 minutes until we check if we should rest again
+		int delay = 300 * 1000;
+
+		restDelay->updateToCurrentTime();
+		restDelay->addMiliTime(delay);
+
+		agent->setMovementState(AiAgent::RESTING);
+
+		// Chance to stop resting from 45s up to 2 minutes stored in ms
+		int restingTime = delay - ((45 + System::random(45)) * 1000);
+		agent->writeBlackboard("restingTime", restingTime);
+
+		int speciesID = agent->getSpecies();
+		bool canSitDown = false;
+
+		Zone* zone = agent->getZone();
+
+		// We are returning Success here since we have the state and delays set
+		if (zone == nullptr)
+			return SUCCESS;
+
+		ManagedReference<CreatureManager*> creoManager = zone->getCreatureManager();
+
+		if (creoManager != nullptr) {
+			AiSpeciesData* speciesData = creoManager->getAiSpeciesData(speciesID);
+
+			if (speciesData != nullptr) {
+				canSitDown = speciesData->canSitDown();
+			}
+		}
+
+		if (agent->isNpc() || (canSitDown && System::random(2) > 0)) {
+			agent->setPosture(CreaturePosture::SITTING, true);
+		} else {
+			agent->setPosture(CreaturePosture::LYINGDOWN, true);
+		}
+
+		return SUCCESS;
+	}
+
+	String print() const {
+		StringBuffer msg;
+		msg << className;
+
+		return msg.toString();
+	}
+};
+
+class StopResting : public Behavior {
+public:
+	StopResting(const String& className, const uint32 id, const LuaObject& args) : Behavior(className, id, args) {
+	}
+
+	StopResting(const StopResting& a) : Behavior(a) {
+	}
+
+	StopResting& operator=(const StopResting& a) {
+		if (this == &a)
+			return *this;
+		Behavior::operator=(a);
+		return *this;
+	}
+
+	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
+		if (agent == nullptr)
+			return FAILURE;
+
+		agent->setPosture(CreaturePosture::UPRIGHT, true);
+		agent->setMovementState(AiAgent::PATROLLING);
+
+		return SUCCESS;
+	}
+
+	String print() const {
+		StringBuffer msg;
+		msg << className;
+
+		return msg.toString();
+	}
+};
+
 
 }
 }

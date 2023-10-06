@@ -57,7 +57,7 @@ TatooineBestineScreenPlay = CityScreenPlay:new {
 		{"storm_commando", -1115.14, 12, -3639.18, 263.058, 0, "npc_imperial", true},
 	},
 
-	patrolNpcs = {"businessman_patrol", "commoner_fat_patrol", "commoner_old_patrol", "commoner_tatooine_patrol", "commoner_technician", "explorer", "gambler", "noble_patrol", "scientist_patrol"},
+	patrolNpcs = {"businessman_patrol", "commoner_fat_patrol", "commoner_old_patrol", "commoner_tatooine_patrol", "commoner_technician_patrol", "explorer_patrol", "gambler_patrol", "noble_patrol", "scientist_patrol"},
 
 	patrolMobiles = {
 		--{patrolPoints, template, x, z, y, direction, cell, mood, combatPatrol},
@@ -117,9 +117,6 @@ TatooineBestineScreenPlay = CityScreenPlay:new {
 	},
 
 	mobiles = {
-		--Cantina
-		{"bartender",60,-11.1901,-0.894992,1.50145,33.4278,1028647, ""},
-
 		--starport interior
 		{"trainer_shipwright",60,-3.2,0.6,67.9,144,1026828, "neutral"},
 		{"chassis_dealer",60,5.2,0.6,79.0,-70,1026825, "neutral"},
@@ -128,7 +125,6 @@ TatooineBestineScreenPlay = CityScreenPlay:new {
 		{"trainer_medic",0,-8.7,0.2,0.1,91,4005383, ""},
 
 		--Guild Hall -1239 -3580
-		{"coa3_tactical_imperial",60,9.74537,1.13306,0.300803,93.0077,1028549, "npc_imperial"},
 		{"trainer_scout", 0, -11.6, 1.1, 4.6, 174, 1028550, ""},
 		{"brawler",300,-14.01,1.13306,-8.53,120.004,1028553, ""},
 		{"trainer_brawler",0,-11,1.1,-14,0,1028553, ""},
@@ -146,9 +142,7 @@ TatooineBestineScreenPlay = CityScreenPlay:new {
 		--Guild Hall -1187 -3515
 		{"contractor",60,-3.69,1.13306,-6,11.0003,1028558, ""},
 		{"trainer_artisan",0,-0.0507306,1.13306,-13.747,0,1028562, ""},
-		{"mercenary",60,3.29,1.13306,-9.58,249.007,1028562, ""},
-
-		{"coa3_information_imperial",60,14.0299,1.13306,-8.82756,97.6176,1028561, "npc_imperial"},
+		{"mercenary",300,3.29,1.13306,-9.58,249.007,1028562, ""},
 
 		--Guild Hall -1130 -3540
 		{"akal_colzet",60,0.436469,1.75,-14.4381,0,1212359, "npc_imperial"},
@@ -158,7 +152,7 @@ TatooineBestineScreenPlay = CityScreenPlay:new {
 		{"bounty_hunter",300,-10.2,1.0,7.1,-7,1028169, "npc_accusing"},
 
 		--east Tavern -1074 -3640
-		{"commoner_technician",60,4.6,1.0,7.5,90,1528396, "npc_use_terminal_high"},
+		{"commoner_technician",300,4.6,1.0,7.5,90,1528396, "npc_use_terminal_high"},
 		{"chiss_female",60,10.2,0.4,-4.5,0,1528397, "npc_angry"},
 		{"chiss_male",60,10.3,0.4,-5.6,90,1528397, "sad"},
 		{"patron_ithorian",60,1.6,0.4,-6.0,90,1528397, "npc_sitting_ground"},
@@ -169,15 +163,15 @@ TatooineBestineScreenPlay = CityScreenPlay:new {
 		{"commoner_naboo",60,-0.6,0.4,-2.8,134,1528397, "npc_sitting_chair"},
 		{"ishitib_male",60,3.0,0.4,-9.3,0,1528397, "npc_sitting_chair"},
 		{"commoner_fat",60,-9.4,1.0,9.3,-80,1528398, "npc_standing_drinking"},
-		{"mercenary",60,-10.6,0.4,-2.3,90,1528397, "threaten"},
-		{"mercenary",60,-10.7,-1.4,-10.4,44,1528400, "threaten"},
-		{"mercenary",60,0.2,-4.0,-10.4,-47,1528401, "threaten"},
-		{"mercenary",60,-11.2,-9.5,1.8,135,1528404, "threaten"},
+		{"mercenary",300,-10.6,0.4,-2.3,90,1528397, "threaten"},
+		{"mercenary",300,-10.7,-1.4,-10.4,44,1528400, "threaten"},
+		{"mercenary",300,0.2,-4.0,-10.4,-47,1528401, "threaten"},
+		{"mercenary",300,-11.2,-9.5,1.8,135,1528404, "threaten"},
 		{"seeker",240,-1.0,-9.5,1.8,-123,1528404, ""},
 		{"twilek_slave",60,-1.9,-9.5,-2.4,130,1528407, "nervous"},
 		{"devaronian_male",60,-0.4,-9.5,-3.9,-44,1528407, "accusing"},
-		{"mercenary",60,-0.5,-9.5,-2.4,-90,1528407, "threaten"},
-		{"mercenary",60,-1.9,-9.5,-3.6,-16,1528407, "threaten"},
+		{"mercenary",300,-0.5,-9.5,-2.4,-90,1528407, "threaten"},
+		{"mercenary",300,-1.9,-9.5,-3.6,-16,1528407, "threaten"},
 		{"probot",60,2.7,-9.5,1.1,-100,1528407, ""},
 
 		--Tavern -1009 -3544
@@ -218,7 +212,6 @@ TatooineBestineScreenPlay = CityScreenPlay:new {
 		{"informant_npc_lvl_1",0,-1053,12,-3726,90,0, ""},
 		{"informant_npc_lvl_1",0,-1023,12,-3677,225,0, ""},
 		{"informant_npc_lvl_1",0,-1220,12,-3560,45,0, ""},
-		{"gerak_vurtimis",60,-1252.5,12,-3617.35,278.1,0, ""},
 		{"gert_talnin",60,-1287.3,12,-3587.16,169.676,0, ""},
 		{"gunham",60,-1125.07,12.1959,-3622.83,83.2544,0, ""},
 		{"sol_windtide",60,-1203.12,12,-3612.74,236.494,0, ""},
@@ -296,6 +289,7 @@ function TatooineBestineScreenPlay:spawnMobiles()
 	end
 
 	--Creatures
+	--[[
 	spawnMobile(self.planet, "lesser_desert_womp_rat",300,-1062.1,23.7,-3451.8,-110,0)
 	spawnMobile(self.planet, "lesser_desert_womp_rat",300,-1068.2,23.2,-3452.5,98,0)
 	spawnMobile(self.planet, "lesser_desert_womp_rat",300,-1064.3,22.7,-3455.2,27,0)
@@ -328,4 +322,5 @@ function TatooineBestineScreenPlay:spawnMobiles()
 	spawnMobile(self.planet, "worrt",300,-1340.4,16,-3431.5,-152,0)
 	spawnMobile(self.planet, "worrt",300,-1341.43,15.3175,-3434.23,284.1,0)
 	spawnMobile(self.planet, "worrt",300,-1337.28,15.0418,-3434.8,360.011,0)
+	]]
 end

@@ -51,12 +51,18 @@ protected:
 	int meatAmount;
 
 	String objectName;
+
 	uint32 planetMapCategory;
+	uint32 planetMapSubCategory;
+
 	int randomNameType;
 	bool randomNameTag;
 	String socialGroup;
 	String faction;
 	int mobType;
+	String healerType;
+
+	bool tauntable;
 
 	int level;
 
@@ -77,6 +83,7 @@ protected:
 	unsigned int pvpBitmask;
 	unsigned int creatureBitmask;
 	unsigned int diet;
+	int lightsaberColor;
 
 	Vector<int> hues;
 
@@ -259,6 +266,10 @@ public:
 		return planetMapCategory;
 	}
 
+	inline uint32 getPlanetMapSubCategory() const {
+		return planetMapSubCategory;
+	}
+
 	inline int getRandomNameType() const {
 		return randomNameType;
 	}
@@ -364,6 +375,14 @@ public:
 		return diet;
 	}
 
+	inline bool isTauntable() const {
+		return tauntable;
+	}
+
+	inline int getLightsaberColor() const {
+		return lightsaberColor;
+	}
+
 	inline const Vector<String>& getTemplates() const {
 		return templates;
 	}
@@ -442,6 +461,10 @@ public:
 
 	inline const String& getPersonalityStf() const {
 		return personalityStf;
+	}
+
+	inline const String& getHealerType() const {
+		return healerType;
 	}
 
 	inline bool isSpecialProtection(int resistType) const {

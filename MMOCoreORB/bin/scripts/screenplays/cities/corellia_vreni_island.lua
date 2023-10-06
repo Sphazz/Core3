@@ -76,7 +76,7 @@ CorelliaVreniIslandScreenPlay = CityScreenPlay:new {
 	},
 
 	mobiles = {
-		{"commoner_technician",60,7.1,1.0,19.3,137,2775411, "npc_use_terminal_high"},
+		{"commoner_technician",300,7.1,1.0,19.3,137,2775411, "npc_use_terminal_high"},
 		{"bounty_hunter",300,24.9055,1.28309,5.31569,360.011,2775414, ""},
 		{"corellia_times_investigator",300,8.4,1.0,10.8,-172,2775413, ""},
 		{"chiss_female",300,8.2,1.0,8.7,7,2775413, ""},
@@ -95,10 +95,9 @@ CorelliaVreniIslandScreenPlay = CityScreenPlay:new {
 		{"junk_dealer", 0, -5664.12, 14.6, -6171.81, 123, 0, ""},
 		{"junk_dealer", 0, -5439.78, 23.91, -6225.42, -84, 0, ""},
 
-		{"commoner_technician",60,-32.3,-0.1,-19.0,-177,3005708, "sad"},
+		{"commoner_technician",300,-32.3,-0.1,-19.0,-177,3005708, "sad"},
 		{"mouse_droid",60,-32.8,-0.1,-21.0,-16,3005708, "sad"},
 		{"patron_devaronian",60,-31.6,0.1,-9.7,10,3005708, "sad"},
-		{"bartender",60,8.5,-0.9,0.1,82,3005697, "neutral"},
 		{"scientist",60,10.5,-0.9,2.0,-119,3005697, "npc_standing_drinking"},
 		{"devaronian_male",60,-31.2,-0.9,20.3,87,3005706, "npc_sitting_chair"},
 		{"bounty_hunter",60,-21.4,-0.9,19.0,-84,3005706, "calm"},
@@ -106,8 +105,8 @@ CorelliaVreniIslandScreenPlay = CityScreenPlay:new {
 		{"chiss_female",60,-30.6,-0.9,20.8,178,3005706, "entertained"},
 		{"seeker",60,-32.2,-0.9,19.6,76,3005706, "neutral"},
 		{"shadowy_figure",60,-27.8,-0.9,0.1,-56,3005705, "worried"},
-		{"mercenary",60,-16.3,-0.9,3.2,106,3005697, "angry"},
-		{"mercenary",60,-16.3,-0.9,-2.9,65,3005697, "angry"},
+		{"mercenary",300,-16.3,-0.9,3.2,106,3005697, "angry"},
+		{"mercenary",300,-16.3,-0.9,-2.9,65,3005697, "angry"},
 		{"medic",60,1.4,0.7,2.0,167,7615445, "npc_use_terminal_high"}
 	}
 }

@@ -249,10 +249,11 @@ int CampKitMenuComponent::handleObjectMenuSelect(SceneObject* sceneObject,
 		campArea->setTerminal(campTerminal);
 		campArea->setCamp(structureObject);
 		campArea->setOwner(player);
-		campArea->setNoBuildArea(true);
+
+		campArea->addAreaFlag(ActiveArea::NOBUILDZONEAREA);
 		campArea->initializePosition(player->getPositionX(), 0, player->getPositionY());
 
-		if (!zone->transferObject(campArea, -1, false)) {
+		if (!zone->transferObject(campArea, -1, true)) {
 			structureObject->destroyObjectFromDatabase(true);
 			campArea->destroyObjectFromDatabase(true);
 			return 1;
@@ -263,6 +264,8 @@ int CampKitMenuComponent::handleObjectMenuSelect(SceneObject* sceneObject,
 		structureObject->addActiveArea(campArea);
 
 		player->sendSystemMessage("@camp:camp_complete");
+
+		player->notifyObservers(ObserverEventType::DEPLOYEDCAMP, campArea, 0);
 
 		/// Remove Camp
 		TangibleObject* tano = cast<TangibleObject*>(sceneObject);

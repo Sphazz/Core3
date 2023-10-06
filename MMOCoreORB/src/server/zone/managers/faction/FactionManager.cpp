@@ -17,7 +17,8 @@ FactionManager::FactionManager() {
 }
 
 void FactionManager::loadData() {
-	loadLuaConfig();
+	loadLuaConfig("scripts/managers/faction_manager.lua");
+	loadLuaConfig("scripts/custom_scripts/managers/faction_manager.lua");
 	loadFactionRanks();
 }
 
@@ -39,8 +40,8 @@ void FactionManager::loadFactionRanks() {
 	info("loaded " + String::valueOf(factionRanks.getCount()) + " ranks", true);
 }
 
-void FactionManager::loadLuaConfig() {
-	info("Loading config file.", true);
+void FactionManager::loadLuaConfig(String file) {
+	info("Loading config file: " + file, true);
 
 	FactionMap* fMap = getFactionMap();
 
@@ -48,7 +49,7 @@ void FactionManager::loadLuaConfig() {
 	lua->init();
 
 	//Load the faction manager lua file.
-	lua->runFile("scripts/managers/faction_manager.lua");
+	lua->runFile(file);
 
 	LuaObject luaObject = lua->getGlobalObject("factionList");
 
@@ -104,29 +105,8 @@ void FactionManager::awardFactionStanding(CreatureObject* player, const String& 
 
 	float gain = level * faction.getAdjustFactor();
 	float lose = gain * 2;
-
-	ghost->decreaseFactionStanding(factionName, lose);
-
-	//Lose faction standing to allies of the creature.
-	for (int i = 0; i < allies->size(); ++i) {
-		const String& ally = allies->get(i);
-
-		if ((ally == "rebel" || ally == "imperial")) {
-			continue;
-		}
-
-		if (!factionMap.contains(ally))
-			continue;
-
-		const Faction& allyFaction = factionMap.get(ally);
-
-		if (!allyFaction.isPlayerAllowed())
-			continue;
-
-		ghost->decreaseFactionStanding(ally, lose);
-	}
-
 	bool gcw = false;
+
 	if (factionName == "rebel" || factionName == "imperial") {
 		gcw = true;
 	}
@@ -148,6 +128,27 @@ void FactionManager::awardFactionStanding(CreatureObject* player, const String& 
 			continue;
 
 		ghost->increaseFactionStanding(enemy, gain);
+	}
+
+	ghost->decreaseFactionStanding(factionName, lose);
+
+	//Lose faction standing to allies of the creature.
+	for (int i = 0; i < allies->size(); ++i) {
+		const String& ally = allies->get(i);
+
+		if ((ally == "rebel" || ally == "imperial")) {
+			continue;
+		}
+
+		if (!factionMap.contains(ally))
+			continue;
+
+		const Faction& allyFaction = factionMap.get(ally);
+
+		if (!allyFaction.isPlayerAllowed())
+			continue;
+
+		ghost->decreaseFactionStanding(ally, lose);
 	}
 }
 

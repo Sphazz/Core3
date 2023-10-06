@@ -57,6 +57,7 @@ public:
 	const static int CREATURE = 0x400;
 	const static int NPCCREATURE = 0x401;
 	const static int DROIDCREATURE = 0x402;
+	const static int HELPERDROIDCREATURE = 0x40F;
 	const static int PROBOTCREATURE = 0x403;
 	const static int PLAYERCREATURE = 0x409;
 
@@ -78,6 +79,7 @@ public:
 	const static int HARVESTER = 0x1003;
 	const static int TURRET = 0x1004;
 	const static int MINEFIELD = 0x1005;
+	const static int COVERTSCANNER = 0x1008;
 
 	const static int TANGIBLE = 0x2000;
 	const static int AMMUNITION = 0x2001;

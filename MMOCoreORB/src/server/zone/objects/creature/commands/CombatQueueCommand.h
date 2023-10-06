@@ -12,6 +12,7 @@
 #include "server/zone/objects/scene/SceneObject.h"
 #include "server/zone/managers/combat/CombatManager.h"
 #include "server/zone/objects/player/PlayerObject.h"
+#include "server/zone/objects/creature/ai/AiAgent.h"
 #include "server/zone/objects/cell/CellObject.h"
 #include "server/zone/managers/combat/CreatureAttackData.h"
 #include "server/zone/managers/collision/CollisionManager.h"
@@ -154,11 +155,10 @@ public:
 		float rangeToCheck = range;
 
 		if (weapon == nullptr) {
-			if(creature->getWeapon() == nullptr) {
+			weapon = creature->getWeapon();
+
+			if (weapon == nullptr) {
 				return GENERALERROR;
-			}
-			else {
-				weapon = creature->getWeapon();
 			}
 		}
 
@@ -181,33 +181,37 @@ public:
 				if (ghost->isAFK())
 					return GENERALERROR;
 
-				ManagedReference<TangibleObject*> targetTano = targetObject.castTo<TangibleObject*>();
+				bool covertOvert = ConfigManager::instance()->useCovertOvertSystem();
 
-				if (targetTano != nullptr && creature->getFaction() != 0 && targetTano->getFaction() != 0 && targetTano->getFaction() != creature->getFaction() && creature->getFactionStatus() != FactionStatus::OVERT && !ghost->hasCrackdownTef()) {
-					if (targetTano->isCreatureObject()) {
-						ManagedReference<CreatureObject*> targetCreature = targetObject.castTo<CreatureObject*>();
+				if (!covertOvert) {
+					ManagedReference<TangibleObject*> targetTano = targetObject.castTo<TangibleObject*>();
 
-						if (targetCreature != nullptr) {
-							if (targetCreature->isPlayerCreature()) {
+					if (targetTano != nullptr && creature->getFaction() != 0 && targetTano->getFaction() != 0 && targetTano->getFaction() != creature->getFaction() && creature->getFactionStatus() != FactionStatus::OVERT && !ghost->hasCrackdownTef()) {
+						if (targetTano->isCreatureObject()) {
+							ManagedReference<CreatureObject*> targetCreature = targetObject.castTo<CreatureObject*>();
 
-								if (!CombatManager::instance()->areInDuel(creature, targetCreature) && !targetCreature->hasBountyMissionFor(creature) && !creature->hasBountyMissionFor(targetCreature) && targetCreature->getFactionStatus() == FactionStatus::OVERT)
-									ghost->doFieldFactionChange(FactionStatus::OVERT);
-							} else if (targetCreature->isPet()) {
-								ManagedReference<CreatureObject*> targetOwner = targetCreature->getLinkedCreature().get();
+							if (targetCreature != nullptr) {
+								if (targetCreature->isPlayerCreature()) {
 
-								if (targetOwner != nullptr && !creature->hasBountyMissionFor(targetOwner) && !targetOwner->hasBountyMissionFor(creature) && !CombatManager::instance()->areInDuel(creature, targetOwner) && targetOwner->getFactionStatus() == FactionStatus::OVERT) {
+									if (!CombatManager::instance()->areInDuel(creature, targetCreature) && !targetCreature->hasBountyMissionFor(creature) && !creature->hasBountyMissionFor(targetCreature) && targetCreature->getFactionStatus() == FactionStatus::OVERT)
 										ghost->doFieldFactionChange(FactionStatus::OVERT);
+								} else if (targetCreature->isPet()) {
+									ManagedReference<CreatureObject*> targetOwner = targetCreature->getLinkedCreature().get();
+
+									if (targetOwner != nullptr && !creature->hasBountyMissionFor(targetOwner) && !targetOwner->hasBountyMissionFor(creature) && !CombatManager::instance()->areInDuel(creature, targetOwner) && targetOwner->getFactionStatus() == FactionStatus::OVERT) {
+											ghost->doFieldFactionChange(FactionStatus::OVERT);
+									}
+								} else {
+									if (creature->getFactionStatus() == FactionStatus::ONLEAVE)
+										ghost->doFieldFactionChange(FactionStatus::COVERT);
 								}
-							} else {
-								if (creature->getFactionStatus() == FactionStatus::ONLEAVE)
-									ghost->doFieldFactionChange(FactionStatus::COVERT);
 							}
+						} else  if (targetTano->isCreatureObject() || targetTano->isTurret()) {
+							if (creature->getFactionStatus() == FactionStatus::ONLEAVE && !(targetTano->getPvpStatusBitmask() & CreatureFlag::OVERT))
+								ghost->doFieldFactionChange(FactionStatus::COVERT);
+							else if ((targetTano->getPvpStatusBitmask() & CreatureFlag::OVERT))
+								ghost->doFieldFactionChange(FactionStatus::OVERT);
 						}
-					} else {
-						if (creature->getFactionStatus() == FactionStatus::ONLEAVE && !(targetTano->getPvpStatusBitmask() & CreatureFlag::OVERT))
-							ghost->doFieldFactionChange(FactionStatus::COVERT);
-						else if ((targetTano->getPvpStatusBitmask() & CreatureFlag::OVERT))
-							ghost->doFieldFactionChange(FactionStatus::OVERT);
 					}
 				}
 			}
@@ -436,8 +440,8 @@ public:
 					buffer << "_face";
 
 			} else {
-				if (hitLocation == 0)
-					hitLocation = System::random(5) + 1;
+				if (hitLocation == CombatManager::HIT_NUM)
+					hitLocation = System::random(5);
 
 				switch(hitLocation) {
 				case CombatManager::HIT_BODY:
@@ -632,9 +636,17 @@ public:
 		case CommandEffect::DIZZY:
 			defender->setDizziedState(duration);
 			break;
-		case CommandEffect::INTIMIDATE:
+		case CommandEffect::INTIMIDATE: {
+			if (defender->isAiAgent()) {
+				AiAgent* defenderAgent = defender->asAiAgent();
+
+				if (defenderAgent != nullptr && (defenderAgent->getCreatureBitmask() & CreatureFlag::NOINTIMIDATE))
+					break;
+			}
+
 			defender->setIntimidatedState(duration);
 			break;
+		}
 		case CommandEffect::STUN:
 			defender->setStunnedState(duration);
 			break;

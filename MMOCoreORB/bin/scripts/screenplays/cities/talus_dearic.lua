@@ -141,7 +141,7 @@ TalusDearicScreenPlay = CityScreenPlay:new {
 		--Starport
 		{"commoner",60,0.904988,0.639421,56.083,180.007,3175356, "conversation"},
 		{"farmer",60,-1.32019,0.639422,60.6488,180.001,3175356, "conversation"},
-		{"mercenary",60,-0.186001,0.639421,56.083,135.241,3175356, "conversation"},
+		{"mercenary",300,-0.186001,0.639421,56.083,135.241,3175356, "conversation"},
 		{"devaronian_male",60,-1.32019,0.639422,59.6488,0,3175356, "conversation"},
 		{"shadowy_figure",60,0.904988,0.639421,54.983,360.011,3175356, "conversation"},
 		{"businessman",60,-32.0259,1.63942,62.9678,180.006,3175361, "conversation"},
@@ -153,7 +153,6 @@ TalusDearicScreenPlay = CityScreenPlay:new {
 		{"trainer_shipwright",60,0.1,0.6,73.0,0,3175353, "neutral"},
 
 		--Cantina
-		{"bartender",60,7.8,-0.9,-1.4,119,3175391, ""},
 		{"businessman",60,-5.0724,-0.894996,21.4966,284.21,3175397, ""},
 		{"medic",60,-44.5373,0.105009,-20.8963,0,3175403, "conversation"},
 		{"pilot",60,-44.5373,0.104709,-19.7963,180.005,3175403, "npc_consoling"},

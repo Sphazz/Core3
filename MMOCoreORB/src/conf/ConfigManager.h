@@ -238,6 +238,10 @@ namespace conf {
 		const Vector<int>& getIntVector(const String& name, unsigned int accountID = 0);
 		bool getAsJSON(const String& target, JSONSerializationType& jsonData);
 
+		Logger::LogLevel getLogLevel(const String& name, Logger::LogLevel defaultValue, unsigned int accountID = 0) {
+			return static_cast<Logger::LogLevel>(getInt(name, (int)defaultValue, accountID));
+		}
+
 		bool setNumber(const String& name, lua_Number newValue);
 		bool setInt(const String& name, int newValue);
 		bool setBool(const String& name, bool newValue);
@@ -637,6 +641,107 @@ namespace conf {
 			}
 
 			return cachedForceNoTradeADKMessage;
+		}
+
+		inline uint32 getAiAgentConsoleThrottle() {
+			static uint32 cachedVersion = 0;
+			static uint32 cachedValue;
+
+			if (configVersion.get() > cachedVersion) {
+				Locker guard(&mutex);
+#ifdef DEBUG_AI
+				cachedValue = getInt("Core3.AiAgent.ConsoleThrottle", 1);
+#else // !DEBUG_AI
+				cachedValue = getInt("Core3.AiAgent.ConsoleThrottle", 100);
+#endif // DEBUG_AI
+				if (cachedVersion <= 0) {
+					cachedVersion = 1;
+				}
+
+				cachedVersion = configVersion.get();
+			}
+
+			return cachedValue;
+		}
+
+#ifdef DEBUG_AI
+		inline bool getAiAgentLoadTesting() {
+			static uint32 cachedVersion = 0;
+			static bool cachedAiAgentLoadTesting;
+
+			if (configVersion.get() > cachedVersion) {
+				Locker guard(&mutex);
+				cachedAiAgentLoadTesting = getBool("Core3.AiAgent.AiAgentLoadTesting", false);
+				cachedVersion = configVersion.get();
+			}
+
+			return cachedAiAgentLoadTesting;
+		}
+#endif // DEBUG_AI
+
+		inline bool isPvpBroadcastChannelEnabled() {
+			static uint32 cachedVersion = 0;
+			static bool cachedPvpBroadcastChannel;
+
+			if (configVersion.get() > cachedVersion) {
+				Locker guard(&mutex);
+				cachedPvpBroadcastChannel = getBool("Core3.ChatManager.PvpBroadcastChannel", false);
+				cachedVersion = configVersion.get();
+			}
+
+			return cachedPvpBroadcastChannel;
+		}
+
+		inline bool useCovertOvertSystem() {
+			static uint32 cachedVersion = 0;
+			static bool cachedCovertOvertSystem;
+
+			if (configVersion.get() > cachedVersion) {
+				Locker guard(&mutex);
+				cachedCovertOvertSystem = getBool("Core3.GCWManager.useCovertOvertSystem", false);
+				cachedVersion = configVersion.get();
+			}
+
+			return cachedCovertOvertSystem;
+		}
+
+		inline bool getLoginEnableSessionId() {
+			static uint32 cachedVersion = 0;
+			static bool cachedEnableSessionId;
+
+			if (configVersion.get() > cachedVersion) {
+				Locker guard(&mutex);
+				cachedEnableSessionId = getBool("Core3.Login.EnableSessionId", false);
+				cachedVersion = configVersion.get();
+			}
+
+			return cachedEnableSessionId;
+		}
+
+		inline int getMinLairSpawnInterval() {
+			static uint32 cachedVersion = 0;
+			static int cachedMinSpawnDelay;
+
+			if (configVersion.get() > cachedVersion) {
+				Locker guard(&mutex);
+				cachedMinSpawnDelay = getInt("Core3.Regions.minimumLairSpawnInterval", 5000);
+				cachedVersion = configVersion.get();
+			}
+
+			return cachedMinSpawnDelay;
+		}
+
+		inline float getSpawnCheckRange() {
+			static uint32 cachedVersion = 0;
+			static float cachedSpawnRange;
+
+			if (configVersion.get() > cachedVersion) {
+				Locker guard(&mutex);
+				cachedSpawnRange = getFloat("Core3.Regions.spawnCheckRange", 64.f);
+				cachedVersion = configVersion.get();
+			}
+
+			return cachedSpawnRange;
 		}
 	};
 }

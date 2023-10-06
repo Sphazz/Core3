@@ -177,6 +177,7 @@ function CrackdownCantina:startTrouble(pCantina)
 	writeData(cantinaID .. ":harasserID", SceneObject(pSpawn):getObjectID())
 	spatialChat(pSpawn, "@npc_reaction/imperial_crackdown_cantina:call_in_" .. factionName)
 
+	AiAgent(pSpawn):setMovementState(AI_PATROLLING)
 	createEvent(1000, "CrackdownCantina", "setupHarasser", pSpawn, "")
 end
 
@@ -678,8 +679,10 @@ function CrackdownCantina:doFinalFight(pMobile)
 		CreatureObject(pTarget):sendSystemMessage("Debug: You are final fight target")
 	end
 
-	if (CreatureObject(pTarget):isOnLeave()) then
-		CreatureObject(pTarget):setFactionStatus(1)
+	if (useCovertOvert() and CreatureObject(pTarget):getFactionStatus() < OVERT) then
+		CreatureObject(pTarget):setFactionStatus(OVERT)
+	elseif (CreatureObject(pTarget):isOnLeave()) then
+		CreatureObject(pTarget):setFactionStatus(COVERT)
 	end
 
 	if (readData(mobileID .. ":calledForBackup") ~= 1) then

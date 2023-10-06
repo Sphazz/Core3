@@ -206,7 +206,7 @@ CorelliaTyrenaScreenPlay = CityScreenPlay:new {
 		{"info_broker",300,-1.85381,0.639422,55.3013,360.011,1935687, "conversation"},
 
 		--Med Center
-		{"brawler",60,24.4668,0.26,4.56238,180.004,1935831, "angry"},
+		{"brawler",300,24.4668,0.26,4.56238,180.004,1935831, "angry"},
 		{"entertainer",60,24.4668,0.26,3.56238,0,1935831, "worried"},
 		{"trainer_doctor", 0,21,0.26,-5,0,1935831, ""},
 		{"trainer_medic", 0,13.8906,0.26,3.8275,183,1935831, ""},
@@ -215,7 +215,7 @@ CorelliaTyrenaScreenPlay = CityScreenPlay:new {
 		{"trainer_medic", 0,-15.9755,0.26,0.30427,15,1935835, ""},
 		--2nd floor
 		{"medic",300,-5.68393,7.26,0.077741,180.455,1935837, "conversation"},
-		{"mercenary",60,-5.6917,7.26,-0.915899,0.445885,1935837, "angry"},
+		{"mercenary",300,-5.6917,7.26,-0.915899,0.445885,1935837, "angry"},
 		--3rd floor
 		{"chiss_male",300,29.3506,13.25,10.8359,180.011,1935841, "npc_standing_drinking"},
 		{"farmer",60,29.3506,13.25,9.83587,360.011,1935841, "conversation"},
@@ -232,7 +232,6 @@ CorelliaTyrenaScreenPlay = CityScreenPlay:new {
 
 		--Cantina
 		{"comm_operator",400,48.13,0.105,2.47,248.001,2625353, "npc_imperial"},
-		{"bartender",60,8.6,-0.9,0.6,90,2625355, "neutral"},
 		{"trainer_dancer", 0,16.7961,-0.894993,-10.1031,3,2625355, ""},
 		{"trainer_musician", 0,21.1399,-0.894993,8.20648,120,2625355, ""},
 
@@ -244,16 +243,14 @@ CorelliaTyrenaScreenPlay = CityScreenPlay:new {
 		{"chiss_female",300,-26.4983,-0.519991,9.85428,360.011,2625365, "entertained"},
 		{"rebel_recruiter", 60,-27.6,-0.9,0.6,89,2625363, ""},
 		{"corellia_times_investigator", 60,-32.0578,0.10501,-20.4764,246.868,2625366, ""},
-		{"mercenary", 60,-32.0578,0.10501,-21.5764,262.741,2625366, ""},
+		{"mercenary", 300,-32.0578,0.10501,-21.5764,262.741,2625366, ""},
 
 		--2nd part of the city.
 		--Guild Hall -5417 -2723
-		{"mercenary", 60,3.29,1.13306,-9.58,249.007,1935454, ""},
+		{"mercenary", 300,3.29,1.13306,-9.58,249.007,1935454, ""},
 		{"trainer_artisan", 0,0,1.13306,-14,0,1935454, ""},
-		{"coa3_information_rebel", 60,14.1936,1.13306,-8.97227,335.228,1935453, "calm"},
 
 		--Guild Hall -5463 -2722
-		{"coa3_tactical_rebel", 60,9.53575,1.13306,0.330446,310.824,1935441, "calm"},
 		{"trainer_marksman", 0,0,1.13306,-14,0,1935444, ""},
 		{"businessman", 60,3.32,1.13306,-8.49,228.007,1935444, ""},
 		{"bounty_hunter", 300,-14.01,1.13306,-8.53,120.004,1935445, ""},
@@ -272,7 +269,7 @@ CorelliaTyrenaScreenPlay = CityScreenPlay:new {
 		{"farmer",60,10.1683,1.75,-5.25457,135.008,1935476, "conversation"},
 		{"farmer_rancher",60,11.2683,1.75,-5.25457,180.017,1935476, "conversation"},
 		{"medic",60,11.2683,1.75,-6.35457,360.011,1935476, "conversation"},
-		{"mercenary",60,-3.65637,1.1544,-7.67307,179.999,1935476, "angry"},
+		{"mercenary",300,-3.65637,1.1544,-7.67307,179.999,1935476, "angry"},
 		{"noble",60,5.78383,1.1544,-1.95638,180.012,1935476, "conversation"},
 		{"contractor",60,5.78383,1.1544,-3.05638,360.011,1935476, "conversation"},
 		{"scientist",300,1.29504,1.75,-19.8672,180.011,1935477, "worried"},
@@ -299,7 +296,7 @@ CorelliaTyrenaScreenPlay = CityScreenPlay:new {
 		{"noble", 60,27.93,2.12878,58.19,222.007,2365435, ""},
 		{"noble", 60,19.26,2.12847,56.13,266.008,2365436, ""},
 		{"comm_operator",300,5.33572,2.12878,71.6096,0,2365436, "npc_imperial"},
-		{"mercenary",60,5.33572,2.12878,72.7096,180.003,2365436, "npc_accusing"},
+		{"mercenary",300,5.33572,2.12878,72.7096,180.003,2365436, "npc_accusing"},
 		{"trainer_dancer", 0,17.6008,2.12878,53.4279,4,2365436, ""},
 		{"trainer_musician", 0,21.7,2.1,76.1,180,2365436, ""},
 		{"theater_manager", 0,21.9985,2.12818,63.5,0,2365436, ""},

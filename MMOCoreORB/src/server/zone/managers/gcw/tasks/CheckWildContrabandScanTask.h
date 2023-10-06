@@ -31,6 +31,13 @@ public:
 		if (server == nullptr || server->isServerShuttingDown())
 			return;
 
+		if (!server->isServerOnline()) {
+			uint64 delay = strongRef->getWildScanInterval() + System::random(600000);
+
+			schedule(delay);
+			return;
+		}
+
 		strongRef->performCheckWildContrabandScanTask();
 	}
 };

@@ -7,6 +7,7 @@
 #include "server/zone/objects/player/sessions/ConversationSession.h"
 #include "server/zone/packets/object/StopNpcConversation.h"
 #include "server/zone/managers/creature/CreatureTemplateManager.h"
+#include "server/zone/objects/creature/ai/AiAgent.h"
 
 ConversationObserverImplementation::ConversationObserverImplementation(uint32 convoTemplateCRC) {
 	conversationTemplateCRC = convoTemplateCRC;
@@ -69,13 +70,23 @@ int ConversationObserverImplementation::notifyObserverEvent(unsigned int eventTy
 
 		return 0;
 	}
-	case ObserverEventType::STOPCONVERSATION:
+	case ObserverEventType::STOPCONVERSATION: {
 		if (player != nullptr)
 			cancelConversationSession(player, npc);
 
+		auto agent = npc->asAiAgent();
+
+		if (agent != nullptr && agent->getMovementState() == AiAgent::CONVERSING) {
+			if (agent->getFollowObject().get() == nullptr) {
+				agent->setMovementState(AiAgent::OBLIVIOUS);
+			} else {
+				agent->setMovementState(AiAgent::FOLLOWING);
+			}
+		}
+
 		//Keep observer.
 		return 0;
-
+	}
 	case ObserverEventType::STARTCONVERSATION: {
 		if (player != nullptr) {
 			//Cancel any existing sessions.

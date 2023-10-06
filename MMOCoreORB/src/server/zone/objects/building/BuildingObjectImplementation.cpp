@@ -37,8 +37,11 @@
 #include "server/zone/objects/building/components/EnclaveContainerComponent.h"
 #include "server/zone/objects/building/components/DestructibleBuildingDataComponent.h"
 #include "server/zone/objects/transaction/TransactionLog.h"
+#include "server/zone/objects/player/FactionStatus.h"
 
 void BuildingObjectImplementation::initializeTransientMembers() {
+	cooldownTimerMap = new CooldownTimerMap();
+
 	StructureObjectImplementation::initializeTransientMembers();
 
 	setLoggingName("BuildingObject");
@@ -46,8 +49,7 @@ void BuildingObjectImplementation::initializeTransientMembers() {
 	registeredPlayerIdList.removeAll();
 }
 
-void BuildingObjectImplementation::loadTemplateData(
-		SharedObjectTemplate* templateData) {
+void BuildingObjectImplementation::loadTemplateData(SharedObjectTemplate* templateData) {
 	StructureObjectImplementation::loadTemplateData(templateData);
 
 	containerVolumeLimit = 0xFFFFFFFF;
@@ -56,8 +58,7 @@ void BuildingObjectImplementation::loadTemplateData(
 
 	optionsBitmask = 0x00000100;
 
-	SharedBuildingObjectTemplate* buildingData =
-		dynamic_cast<SharedBuildingObjectTemplate*> (templateData);
+	SharedBuildingObjectTemplate* buildingData = dynamic_cast<SharedBuildingObjectTemplate*>(templateData);
 
 	if (buildingData == nullptr)
 		return;
@@ -67,7 +68,7 @@ void BuildingObjectImplementation::loadTemplateData(
 	const PortalLayout* portalLayout = templateData->getPortalLayout();
 
 	if (portalLayout != nullptr)
-		totalCellNumber = portalLayout->getFloorMeshNumber() - 1; //remove the exterior floor
+		totalCellNumber = portalLayout->getFloorMeshNumber() - 1; // remove the exterior floor
 
 	publicStructure = buildingData->isPublicStructure();
 
@@ -1059,19 +1060,17 @@ bool BuildingObjectImplementation::isInPlayerCity() {
 }
 
 bool BuildingObjectImplementation::canPlayerRegisterWithin() {
-	const PlanetMapCategory* pmc = getPlanetMapSubCategory();
-
-	if (pmc == nullptr)
-		pmc = getPlanetMapCategory();
+	const PlanetMapCategory* pmc = getPlanetMapCategory();
 
 	if (pmc == nullptr)
 		return false;
 
 	String categoryName = pmc->getName();
+
 	if (categoryName == "medicalcenter" || categoryName == "hotel" || categoryName == "cantina" || categoryName == "theater" || categoryName == "guild_theater" || categoryName == "tavern")
 		return true;
 
-	if (categoryName == "imperial_hq" || categoryName == "rebel_hq") {
+	if (categoryName == "imperial" || categoryName == "rebel") {
 		SharedBuildingObjectTemplate* buildingTemplate = cast<SharedBuildingObjectTemplate*>(getObjectTemplate());
 
 		if (buildingTemplate == nullptr) {
@@ -1383,16 +1382,26 @@ void BuildingObjectImplementation::createChildObjects() {
 				}
 
 			} else {
-				if ((obj->isTurret() || obj->isMinefield() || obj->isDetector()) && gcwMan != nullptr && !gcwMan->shouldSpawnDefenses()) {
-					if (obj->isTurret())
-						gcwMan->addTurret(asBuildingObject(), nullptr);
-					else if (obj->isMinefield())
-						gcwMan->addMinefield(asBuildingObject(), nullptr);
-					else if (obj->isDetector())
+				if ((obj->isTurret() || obj->isMinefield() || obj->isScanner()) && gcwMan != nullptr) {
+					if (!gcwMan->shouldSpawnDefenses()) {
+						if (obj->isTurret())
+							gcwMan->addTurret(asBuildingObject(), nullptr);
+						else if (obj->isMinefield())
+							gcwMan->addMinefield(asBuildingObject(), nullptr);
+						else if (obj->isScanner())
+							gcwMan->addScanner(asBuildingObject(), nullptr);
+
+						obj->destroyObjectFromDatabase(true);
+						continue;
+					}
+
+					// Prevent Scanners from spawning from GCW base templates if covert/overt system is disabled
+					if (obj->isScanner() && !ConfigManager::instance()->useCovertOvertSystem()) {
 						gcwMan->addScanner(asBuildingObject(), nullptr);
 
-					obj->destroyObjectFromDatabase(true);
-					continue;
+						obj->destroyObjectFromDatabase(true);
+						continue;
+					}
 				}
 
 				float angle = getDirection()->getRadians();
@@ -1412,7 +1421,7 @@ void BuildingObjectImplementation::createChildObjects() {
 				if (obj->isTurret() || obj->isMinefield())
 					obj->createChildObjects();
 
-				thisZone->transferObject(obj, -1, false);
+				thisZone->transferObject(obj, -1, true);
 			}
 
 			if (obj->isTurretControlTerminal()) {
@@ -1432,8 +1441,9 @@ void BuildingObjectImplementation::createChildObjects() {
 			permissions->setDefaultDenyPermission(ContainerPermissions::MOVECONTAINER);
 			permissions->setDenyPermission("owner", ContainerPermissions::MOVECONTAINER);
 
-			if (obj->isTurret() || obj->isMinefield() || obj->isDetector()) {
+			if (obj->isTurret() || obj->isMinefield() || obj->isScanner()) {
 				TangibleObject* tano = cast<TangibleObject*>(obj.get());
+
 				if (tano != nullptr) {
 					tano->setFaction(getFaction());
 					tano->setDetailedDescription("DEFAULT BASE TURRET");
@@ -1441,6 +1451,7 @@ void BuildingObjectImplementation::createChildObjects() {
 				}
 
 				InstallationObject* installation = cast<InstallationObject*>(obj.get());
+
 				if (installation != nullptr) {
 					installation->setOwner(getObjectID());
 				}
@@ -1450,7 +1461,7 @@ void BuildingObjectImplementation::createChildObjects() {
 						gcwMan->addTurret(asBuildingObject(), obj);
 					else if (obj->isMinefield())
 						gcwMan->addMinefield(asBuildingObject(), obj);
-					else if (obj->isDetector())
+					else if (obj->isScanner())
 						gcwMan->addScanner(asBuildingObject(), obj);
 
 				} else {
@@ -1531,8 +1542,13 @@ void BuildingObjectImplementation::spawnChildCreaturesFromTemplate() {
 						ManagedReference<CellObject*> cellObject = getCell(child->getCellId());
 						if (cellObject != nullptr) {
 							creature = creatureManager->spawnCreatureWithAi(child->getMobile().hashCode(), childPosition.getX(), childPosition.getZ(), childPosition.getY(), cellObject->getObjectID(), false);
-						} else
+
+							if (creature == nullptr) {
+								error () << "Failed to spawn Creature in Cell in spawnChildCreaturesFromTemplate: Template = " << child->getMobile() << " X = " << childPosition.getX() << " Z = " << childPosition.getZ() << " Y = " << childPosition.getY() << " Cell ID: " << cellObject->getObjectID();
+							}
+						} else {
 							error("nullptr CELL OBJECT");
+						}
 					}
 
 				} catch (Exception& e) {
@@ -1540,8 +1556,7 @@ void BuildingObjectImplementation::spawnChildCreaturesFromTemplate() {
 					e.printStackTrace();
 				}
 
-			} // create the creature outside
-			else {
+			} else { // create the creature outside
 				String mobilename = child->getMobile();
 				float angle = getDirection()->getRadians();
 
@@ -1567,6 +1582,14 @@ void BuildingObjectImplementation::spawnChildCreaturesFromTemplate() {
 			if (creature->isAiAgent()) {
 				AiAgent* ai = cast<AiAgent*>(creature);
 				ai->setRespawnTimer(child->getRespawnTimer());
+
+				if (isGCWBase()) {
+					if (getPvpStatusBitmask() & CreatureFlag::OVERT) {
+						creature->setFactionStatus(FactionStatus::OVERT);
+					} else {
+						creature->setFactionStatus(FactionStatus::COVERT);
+					}
+				}
 			}
 
 			childCreatureObjects.put(creature);
@@ -1693,7 +1716,7 @@ void BuildingObjectImplementation::changeSign(const SignTemplate* signConfig) {
 	signObject->initializePosition(x, z, y);
 	signObject->setDirection(dir.rotate(Vector3(0, 1, 0), degrees));
 
-	getZone()->transferObject(signObject, -1, false);
+	getZone()->transferObject(signObject, -1, true);
 
 	// Set sign permissions
 	ContainerPermissions* permissions = signSceno->getContainerPermissionsForUpdate();

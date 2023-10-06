@@ -29,6 +29,8 @@
 #include "templates/params/OptionBitmask.h"
 #include "templates/params/creature/CreatureFlag.h"
 #include "server/zone/objects/creature/ai/AiAgent.h"
+#include "server/zone/objects/intangible/PetControlDevice.h"
+#include "server/zone/managers/creature/PetManager.h"
 
 void InstallationObjectImplementation::loadTemplateData(SharedObjectTemplate* templateData) {
 	StructureObjectImplementation::loadTemplateData(templateData);
@@ -51,16 +53,17 @@ void InstallationObjectImplementation::sendBaselinesTo(SceneObject* player) {
 	BaseMessage* buio6 = new InstallationObjectMessage6(_this.getReferenceUnsafeStaticCast());
 	player->sendMessage(buio6);
 
+	const int objectType = getObjectTemplate()->getGameObjectType();
 
-	if ((getObjectTemplate()->getGameObjectType() == SceneObjectType::MINEFIELD || getObjectTemplate()->getGameObjectType() == SceneObjectType::DESTRUCTIBLE) && player->isCreatureObject())
-			sendPvpStatusTo(cast<CreatureObject*>(player));
+	if ((objectType == SceneObjectType::MINEFIELD || objectType == SceneObjectType::DESTRUCTIBLE || objectType == SceneObjectType::COVERTSCANNER) && player->isCreatureObject())
+		sendPvpStatusTo(cast<CreatureObject*>(player));
 
 }
 
 void InstallationObjectImplementation::fillAttributeList(AttributeListMessage* alm, CreatureObject* object) {
 	//TangibleObjectImplementation::fillAttributeList(alm, object);
 
-	if (isOnAdminList(object)) {
+	if (object != nullptr && isOnAdminList(object)) {
 
 		//Add the owner name to the examine window.
 		ManagedReference<SceneObject*> obj = object->getZoneServer()->getObject(ownerObjectID);
@@ -80,20 +83,19 @@ void InstallationObjectImplementation::fillAttributeList(AttributeListMessage* a
 
 }
 
-void InstallationObjectImplementation::setOperating(bool value, bool notifyClient) {
-	//updateInstallationWork();
+void InstallationObjectImplementation::setActive(bool value, bool notifyClient) {
+	// updateInstallationWork();
 
-	if (operating == value)
+	if (active == value)
 		return;
 
-	if (value) {
-
-		if(currentSpawn == nullptr)
+	if (value && !isFactory()) {
+		if (currentSpawn == nullptr)
 			return;
 
 		spawnDensity = currentSpawn->getDensityAt(getZone()->getZoneName(), getPositionX(), getPositionY());
 
-		if(spawnDensity < .10) {
+		if (spawnDensity < .10) {
 			return;
 		}
 
@@ -116,10 +118,10 @@ void InstallationObjectImplementation::setOperating(bool value, bool notifyClien
 
 	Time timeToWorkTill;
 
-	operating = value;
+	active = value;
 	extractionRemainder = 0;
 
-	if (operating) {
+	if (active) {
 		setOptionBit(OptionBitmask::ACTIVATED, false);
 
 		lastStartTime.updateToCurrentTime();
@@ -148,7 +150,7 @@ void InstallationObjectImplementation::setOperating(bool value, bool notifyClien
 		resourceHopperTimestamp.updateToCurrentTime();
 	}
 
-	InstallationObjectDeltaMessage7* inso7 = new InstallationObjectDeltaMessage7( _this.getReferenceUnsafeStaticCast());
+	InstallationObjectDeltaMessage7* inso7 = new InstallationObjectDeltaMessage7(_this.getReferenceUnsafeStaticCast());
 	inso7->updateExtractionRate(getActualRate());
 	inso7->close();
 
@@ -156,6 +158,9 @@ void InstallationObjectImplementation::setOperating(bool value, bool notifyClien
 }
 
 void InstallationObjectImplementation::setActiveResource(ResourceContainer* container) {
+	if (container == nullptr || !container->getSpawnObject()->inShift()) {
+		return;
+	}
 
 	Time timeToWorkTill;
 
@@ -307,7 +312,7 @@ bool InstallationObjectImplementation::updateMaintenance(Time& workingTime) {
 
 	int basePowerRate = getBasePowerRate();
 
-	if (isOperating() && basePowerRate != 0) {
+	if (isActive() && basePowerRate != 0) {
 		float energyAmount = (elapsedTime / 3600.0) * basePowerRate;
 
 		if (energyAmount > surplusPower) {
@@ -341,7 +346,7 @@ void InstallationObjectImplementation::updateHopper(Time& workingTime, bool shut
 
 	Time timeToWorkTill;
 
-	if (!isOperating()) {
+	if (!isActive()) {
 		if(lastStopTime.compareTo(resourceHopperTimestamp) != -1)
 			return;
 	}
@@ -354,10 +359,54 @@ void InstallationObjectImplementation::updateHopper(Time& workingTime, bool shut
 		addResourceToHopper(currentSpawn->createResource(0));
 	}
 
-	ManagedReference<ResourceContainer*> container = resourceHopper.get(0);
+	ManagedReference<ResourceContainer*> container = nullptr;
+	String errorString;
 
-	if(currentSpawn == nullptr)
-		currentSpawn = container->getSpawnObject();
+	if (currentSpawn != nullptr) {
+		container = getContainerFromHopper(currentSpawn);
+
+		if (container == nullptr) {
+			Locker locker(currentSpawn);
+			container = currentSpawn->createResource(0);
+
+			addResourceToHopper(container);
+		}
+
+		if (!currentSpawn->inShift() || container->getSpawnID() != currentSpawn->getObjectID()) {
+			errorString = "harvester_resource_depleted"; // Resource has been depleted.  Shutting down.
+		}
+	} else {
+		errorString = "harvester_no_resource"; // No resource selected.  Shutting down.
+	}
+
+	if (!errorString.isEmpty()) {
+		if (isActive()) {
+			StringIdChatParameter stringId("shared", errorString);
+			broadcastToOperators(new ChatSystemMessage(stringId));
+
+			resourceHopperTimestamp.updateToCurrentTime();
+			currentSpawn = nullptr;
+			setActive(false);
+			auto msg = error();
+
+			msg << errorString;
+
+			for (int i = 0; i < operatorList.size(); ++i) {
+				if (i == 0) {
+					msg << "; Operators:";
+				}
+
+				auto player = operatorList.get(i);
+
+				msg << " " << player->getObjectID();
+			}
+
+			msg << ".";
+			msg.flush();
+		}
+
+		return;
+	}
 
 	Time currentTime = workingTime;
 
@@ -383,7 +432,7 @@ void InstallationObjectImplementation::updateHopper(Time& workingTime, bool shut
 	float currentQuantity = container->getQuantity();
 
 
-	if(harvestAmount > 0 || !isOperating()) {
+	if(harvestAmount > 0 || !isActive()) {
 		Locker spawnLocker(currentSpawn);
 
 		currentSpawn->extractResource(getZone()->getZoneName(), harvestAmount);
@@ -404,7 +453,7 @@ void InstallationObjectImplementation::updateHopper(Time& workingTime, bool shut
 	}
 
 	if (shutdownAfterUpdate)
-		setOperating(false);
+		setActive(false);
 
 	/*InstallationObjectDeltaMessage7* inso7 = new InstallationObjectDeltaMessage7( _this.getReferenceUnsafeStaticCast());
 	inso7->startUpdate(0x0D);
@@ -424,7 +473,7 @@ void InstallationObjectImplementation::clearResourceHopper() {
 	if (resourceHopper.size() == 0)
 		return;
 
-	setOperating(false);
+	setActive(false);
 
 	//lets delete the containers from db
 	for (int i = 0; i < resourceHopper.size(); ++i) {
@@ -476,15 +525,78 @@ void InstallationObjectImplementation::changeActiveResourceID(uint64 spawnID) {
 
 	info("updating active ");
 
-	if (isOperating()) {
+	if (isActive()) {
 		updateInstallationWork();
 	}
 
-	currentSpawn = getZoneServer()->getObject(spawnID).castTo<ResourceSpawn*>();
-	if (currentSpawn == nullptr) {
-		error("new spawn null");
+	auto newSpawn = getZoneServer()->getObject(spawnID).castTo<ResourceSpawn*>();
+
+	if (newSpawn == nullptr) {
+		error() << __FUNCTION__ << ": newSpawn is null for spawnID [" << spawnID << "]";
 		return;
 	}
+
+	if (!newSpawn->inShift()) {
+		error() << __FUNCTION__ << ": tried to set an inactive spawnID [" << spawnID << "]";
+		return;
+	}
+
+	auto resourceManager = getZoneServer()->getResourceManager();
+
+	Vector<ManagedReference<ResourceSpawn*> > resourceList;
+
+	resourceManager->getResourceListByType(resourceList, getInstallationType(), zone->getZoneName());
+
+	bool found = false;
+
+	for (int i = 0;i < resourceList.size(); ++i) {
+		auto resource = resourceList.get(i);
+
+		if (resource == nullptr) {
+			continue;
+		}
+
+		if (resource.getObjectID() == newSpawn->getObjectID()) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		StringIdChatParameter stringId("shared", "harvester_resource_depleted"); // Resource has been depleted.  Shutting down.
+		broadcastToOperators(new ChatSystemMessage(stringId));
+
+		if (isActive()) {
+			resourceHopperTimestamp.updateToCurrentTime();
+			currentSpawn = nullptr;
+			setActive(false);
+
+		}
+
+		auto msg = error();
+
+		msg << __FUNCTION__ << ": attempt to set an invalid spawnID [" << spawnID << "] (" << newSpawn->getFinalClass() << ")";
+
+		for (int i = 0; i < operatorList.size(); ++i) {
+			if (i == 0) {
+				msg << "; Operators:";
+			}
+
+			auto player = operatorList.get(i);
+
+			if (player != nullptr) {
+				msg << " " << player->getFirstName() << " (" << player->getObjectID() << ")";
+			}
+		}
+
+		msg << ".";
+		msg.flush();
+
+		return;
+	}
+
+	currentSpawn = newSpawn;
+	spawnDensity = currentSpawn->getDensityAt(getZone()->getZoneName(), getPositionX(), getPositionY());
 
 	Time timeToWorkTill;
 
@@ -590,7 +702,7 @@ void InstallationObjectImplementation::updateResourceContainerQuantity(ResourceC
 
 	Time timeToWorkTill;
 
-	container->setQuantity(newQuantity, false, true);
+	container->setQuantity(newQuantity, false, true, false);
 
 	for (int i = 0; i < resourceHopper.size(); ++i) {
 		ResourceContainer* cont = resourceHopper.get(i);
@@ -599,7 +711,7 @@ void InstallationObjectImplementation::updateResourceContainerQuantity(ResourceC
 			InstallationObjectDeltaMessage7* inso7 = new InstallationObjectDeltaMessage7( _this.getReferenceUnsafeStaticCast());
 			inso7->updateHopper();
 			inso7->startUpdate(0x0D);
-			if(container->getQuantity() == 0 && (!isOperating() || (isOperating() && i != 0)))
+			if(container->getQuantity() == 0 && (!isActive() || (isActive() && i != 0)))
 				resourceHopper.remove(i, inso7, 1);
 			else
 				resourceHopper.set(i, container, inso7, 1);
@@ -615,7 +727,7 @@ void InstallationObjectImplementation::updateResourceContainerQuantity(ResourceC
 	}
 
 	if(resourceHopper.size() == 0)
-		setOperating(false);
+		setActive(false);
 
 	//broadcastToOperators(new InstallationObjectDeltaMessage7(_this.getReferenceUnsafeStaticCast()));
 }
@@ -633,7 +745,7 @@ uint64 InstallationObjectImplementation::getActiveResourceSpawnID() {
 }
 
 float InstallationObjectImplementation::getActualRate() {
-	if (!isOperating())
+	if (!isActive())
 		return 0.0f;
 
 	if (resourceHopper.size() == 0)
@@ -665,17 +777,35 @@ void InstallationObjectImplementation::updateStructureStatus() {
 }
 
 bool InstallationObjectImplementation::isAggressiveTo(CreatureObject* target) {
-	if (!isAttackableBy(target) || target->isVehicleObject())
+	// info(true) << "InstallationObjectImp isAggressiveTo check called";
+
+	if (target == nullptr || target->isVehicleObject() || target->isInvisible())
 		return false;
 
-	if (target->isPlayerCreature()) {
-		Reference<PlayerObject*> ghost = target->getPlayerObject();
-		if (ghost != nullptr && ghost->hasCrackdownTefTowards(getFaction())) {
+	bool targetIsPlayer = target->isPlayerCreature();
+	bool targetIsAgent = target->isAiAgent();
+
+	// Get factions
+	uint32 thisFaction = getFaction();
+	uint32 targetFaction = target->getFaction();
+
+	PlayerObject* ghost = target->getPlayerObject();
+
+	if (targetIsPlayer && ghost != nullptr) {
+		if (ghost->hasCrackdownTefTowards(thisFaction)) {
 			return true;
+		}
+
+		bool covertOvert = ConfigManager::instance()->useCovertOvertSystem();
+
+		if (covertOvert) {
+			if (!ghost->hasGcwTef() && target->getFactionStatus() == FactionStatus::COVERT) {
+				return false;
+			}
 		}
 	}
 
-	if (getFaction() != 0 && target->getFaction() != 0 && getFaction() != target->getFaction())
+	if (thisFaction != 0 && targetFaction != 0 && thisFaction != targetFaction)
 		return true;
 
 	SharedInstallationObjectTemplate* instTemplate = templateObject.castTo<SharedInstallationObjectTemplate*>();
@@ -684,12 +814,12 @@ bool InstallationObjectImplementation::isAggressiveTo(CreatureObject* target) {
 		String factionString = instTemplate->getFactionString();
 
 		if (!factionString.isEmpty()) {
-			if (target->isAiAgent()) {
+			if (targetIsAgent) {
 				AiAgent* targetAi = target->asAiAgent();
 
 				if (FactionManager::instance()->isEnemy(factionString, targetAi->getFactionString()))
 					return true;
-			} else if (target->isPlayerCreature()) {
+			} else if (targetIsPlayer) {
 				PlayerObject* ghost = target->getPlayerObject();
 
 				if (ghost == nullptr)
@@ -709,52 +839,77 @@ bool InstallationObjectImplementation::isAggressiveTo(CreatureObject* target) {
 					if (ghost->getFactionStanding(enemy) >= 3000)
 						return true;
 				}
+
+				if (thisFaction == 0 && isAttackableBy(target))
+					return true;
 			}
 		}
 	}
 
+	// info(true) << "InstallationObjectImp isAggressiveTo returning false";
+
 	return false;
 }
 
-bool InstallationObjectImplementation::isAttackableBy(CreatureObject* object) {
+bool InstallationObjectImplementation::isAttackableBy(CreatureObject* creature) {
+	if (creature == nullptr)
+		return false;
+
+	// info(true) << "InstallationObjectImp isAttackableBy called for " << getObjectID() << "  with attacker creature of " << creature->getObjectID();
+
 	if (!(getPvpStatusBitmask() & CreatureFlag::ATTACKABLE)) {
 		return false;
 	}
 
-	unsigned int thisFaction = getFaction();
-	unsigned int otherFaction = object->getFaction();
+	// Check attacker types
+	bool creatureIsPlayer = creature->isPlayerCreature();
+	bool creatureIsAgent = creature->isAiAgent();
 
-	if (object->isPet()) {
-		ManagedReference<CreatureObject*> owner = object->getLinkedCreature().get();
+	// Get Faction Strings
+	uint32 thisFaction = getFaction();
+	uint32 otherFaction = creature->getFaction();
+
+	if (creature->isPet()) {
+		ManagedReference<PetControlDevice*> pcd = creature->getControlDevice().get().castTo<PetControlDevice*>();
+
+		if (pcd != nullptr && pcd->getPetType() == PetManager::FACTIONPET && isNeutral()) {
+			return false;
+		}
+
+		ManagedReference<CreatureObject*> owner = creature->getLinkedCreature().get();
 
 		if (owner == nullptr)
 			return false;
 
 		return isAttackableBy(owner);
 
-	} else if (object->isPlayerCreature()) {
-		if (thisFaction != 0) {
-			Reference<PlayerObject*> ghost = object->getPlayerObject();
-			if (ghost != nullptr && ghost->hasCrackdownTefTowards(thisFaction)) {
-				return true;
-			}
-			if (otherFaction != 0 && otherFaction == thisFaction) {
-				return false;
-			}
-			if (object->getFactionStatus() == 0) {
-				return false;
-			}
+	} else if (creatureIsPlayer && thisFaction != 0) {
+		Reference<PlayerObject*> ghost = creature->getPlayerObject();
 
-			if ((getPvpStatusBitmask() & CreatureFlag::OVERT) && object->getFactionStatus() != FactionStatus::OVERT) {
+		if (ghost == nullptr)
+			return false;
+
+		if (ghost->hasCrackdownTefTowards(thisFaction)) {
+			return true;
+		}
+
+		int creatureStatus = creature->getFactionStatus();
+
+		if (creatureStatus == 0) {
+			return false;
+		}
+
+		bool covertOvert = ConfigManager::instance()->useCovertOvertSystem();
+
+		if (!covertOvert) {
+			if ((getPvpStatusBitmask() & CreatureFlag::OVERT) && creatureStatus != FactionStatus::OVERT) {
 				return false;
 			}
 		}
 	}
 
-	if (otherFaction != 0 && thisFaction != 0) {
-		if (otherFaction == thisFaction) {
-			return false;
-		}
+	if (otherFaction != 0 && thisFaction != 0 && otherFaction == thisFaction) {
+		return false;
 	}
 
 	SharedInstallationObjectTemplate* instTemplate = templateObject.castTo<SharedInstallationObjectTemplate*>();
@@ -763,12 +918,14 @@ bool InstallationObjectImplementation::isAttackableBy(CreatureObject* object) {
 		String factionString = instTemplate->getFactionString();
 
 		if (!factionString.isEmpty()) {
-			if (object->isAiAgent() && !FactionManager::instance()->isEnemy(factionString, object->asAiAgent()->getFactionString()))
+			if (creature->isAiAgent() && !FactionManager::instance()->isEnemy(factionString, creature->asAiAgent()->getFactionString()))
 				return false;
-			else if (object->isPlayerCreature() && getObjectTemplate()->getFullTemplateString().contains("turret_fs_village"))
+			else if (creatureIsPlayer && getObjectTemplate()->getFullTemplateString().contains("turret_fs_village"))
 				return false;
 		}
 	}
+
+	// info(true) << "InstallationObjectImp isAttackableBy returning true";
 
 	return true;
 }

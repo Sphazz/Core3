@@ -59,10 +59,10 @@ void ConsumableImplementation::updateCraftingValues(CraftingValues* values, bool
 	}
 
 	if (!isSpice()) {
-		if(values->hasProperty("filling")) {
+		if(values->hasExperimentalAttribute("filling")) {
 
 			filling = (fillingMax - fillingMin) * values->getCurrentPercentage("filling") + fillingMin;
-			if(values->hasProperty("add_filling"))
+			if(values->hasExperimentalAttribute("add_filling"))
 				filling *= (1 -(values->getCurrentValue("add_filling") / 100.f));
 
 		}
@@ -77,31 +77,31 @@ void ConsumableImplementation::updateCraftingValues(CraftingValues* values, bool
 		//The container multiplier also stacks with any BE quantity enhancer. So if you use both a +150 quantity tissue (which gives a 2.5x multiplier) and a cask, the final drink will have 7.5x as many doses as one made with a small glass and without the tissue.
 		//T'illa T'ill is the only exception. This appears to be designed as a single-dose item (although why a 10-15% reduction in the food stomach is considered that powerful is beyond me). This will always come out with a single dose no matter what container or BE tissue you include in it, so stick to small glasses.
 
-		if(values->hasProperty("quantity")) {
+		if(values->hasExperimentalAttribute("quantity")) {
 			int quant = (quantityMax - quantityMin) * values->getCurrentPercentage("quantity") + quantityMin;
 
-			if(values->hasProperty("quantity_bonus"))
+			if(values->hasExperimentalAttribute("quantity_bonus"))
 				quant *= values->getCurrentValue("quantity_bonus");
 
 
-			if(values->hasProperty("add_quantity"))
+			if(values->hasExperimentalAttribute("add_quantity"))
 				quant *= (1 + (values->getCurrentValue("add_quantity") / 100.f));
 
 			setUseCount(quant, true);
 		}
 
-		if(values->hasProperty("flavor")) {
+		if(values->hasExperimentalAttribute("flavor")) {
 			duration = (flavorMax - flavorMin) * values->getCurrentPercentage("flavor") + flavorMin;
 
-			if(values->hasProperty("add_flavor"))
+			if(values->hasExperimentalAttribute("add_flavor"))
 				duration *= (1 + (values->getCurrentValue("add_flavor") / 100.f));
 
 		}
 
-		if(values->hasProperty("nutrition")) {
+		if(values->hasExperimentalAttribute("nutrition")) {
 			nutrition = (nutritionMax - nutritionMin) * values->getCurrentPercentage("nutrition") + nutritionMin;
 
-			if(values->hasProperty("add_nutrition"))
+			if(values->hasExperimentalAttribute("add_nutrition"))
 				nutrition *= (1 + (values->getCurrentValue("add_nutrition") / 100.f));
 		}
 	}
@@ -120,8 +120,6 @@ int ConsumableImplementation::handleObjectMenuSelect(CreatureObject* player, byt
 		return 0;
 	}
 
-	PlayerObject* ghost = player->getPlayerObject();
-
 	String raceName = player->getSpeciesName();
 
 	if ((speciesRestriction == "2" && raceName != "trandoshan") || (speciesRestriction == "4" && raceName != "wookiee")) {
@@ -134,7 +132,7 @@ int ConsumableImplementation::handleObjectMenuSelect(CreatureObject* player, byt
 		return 0;
 	}
 
-	if (player->hasBuff(buffCRC)  && (!isAttributeEffect() || isForagedFood())) {
+	if (player->hasBuff(buffCRC) && (!isAttributeEffect() || isForagedFood())) {
 		player->sendSystemMessage("@combat_effects:already_affected"); //You are already under the influence of that food. Eating more won't enhance the effect.
 		return 0;
 	}
@@ -142,10 +140,12 @@ int ConsumableImplementation::handleObjectMenuSelect(CreatureObject* player, byt
 	if (player->isDead() || player->isIncapacitated())
 		return 0;
 
-	int availfill = 0;
+	PlayerObject* ghost = player->getPlayerObject();
 
 	if (ghost == nullptr)
 		return 1;
+
+	int availfill = 0;
 
 	if (isFood())
 		availfill = ghost->getFoodFillingMax() - ghost->getFoodFilling();
@@ -163,21 +163,26 @@ int ConsumableImplementation::handleObjectMenuSelect(CreatureObject* player, byt
 		return 1;
 	}
 
+	float newDuration = duration;
+
+	// Twi'lek race receives a 10% duration bonus
+	if (newDuration > 0 && player->getSpeciesName() == "twilek") {
+		newDuration *= 1.10f;
+	}
 
 	ManagedReference<Buff*> buff = nullptr;
 
 	switch (effectType) {
 	case EFFECT_ATTRIBUTE: {
-		buff = new Buff(player, buffName.hashCode(), duration, BuffType::FOOD);
+		buff = new Buff(player, buffName.hashCode(), newDuration, BuffType::FOOD);
 
 		Locker locker(buff);
 
 		setModifiers(buff, false);
 		break;
 	}
-
 	case EFFECT_SKILL: {
-		buff = new Buff(player, buffName.hashCode(), duration, BuffType::FOOD);
+		buff = new Buff(player, buffName.hashCode(), newDuration, BuffType::FOOD);
 
 		Locker locker(buff);
 
@@ -194,7 +199,6 @@ int ConsumableImplementation::handleObjectMenuSelect(CreatureObject* player, byt
 
 		break;
 	}
-
 	case EFFECT_SPICE: {
 		buff = new SpiceBuff(player, buffName, String::hashCode("spice." + buffName + ".up"), duration);
 
@@ -207,7 +211,6 @@ int ConsumableImplementation::handleObjectMenuSelect(CreatureObject* player, byt
 		decreaseUseCount();
 		return 1;
 	}
-
 	case EFFECT_HEALING: {
 		int healthHealed = 0, actionHealed = 0, mindHealed = 0;
 
@@ -260,7 +263,7 @@ int ConsumableImplementation::handleObjectMenuSelect(CreatureObject* player, byt
 	}
 
 	case EFFECT_DURATION: {
-		buff = new DurationBuff(player, buffName.hashCode(), duration);
+		buff = new DurationBuff(player, buffName.hashCode(), newDuration);
 
 		Locker locker(buff);
 
@@ -269,7 +272,7 @@ int ConsumableImplementation::handleObjectMenuSelect(CreatureObject* player, byt
 	}
 
 	case EFFECT_DELAYED: {
-		buff = new DelayedBuff(player, buffName.hashCode(), duration);
+		buff = new DelayedBuff(player, buffName.hashCode(), newDuration);
 
 		Locker locker(buff);
 
@@ -281,7 +284,6 @@ int ConsumableImplementation::handleObjectMenuSelect(CreatureObject* player, byt
 
 		break;
 	}
-
 	case EFFECT_INSTANT: {
 		if (modifiers.isEmpty())
 			return 0;
@@ -317,7 +319,8 @@ int ConsumableImplementation::handleObjectMenuSelect(CreatureObject* player, byt
 
 		break;
 	}
-
+	case EFFECT_BARTENDER_DRINK:
+		break;
 	default:
 		break;
 	}
@@ -391,7 +394,6 @@ void ConsumableImplementation::setModifiers(Buff* buff, bool skillModifiers) {
 }
 
 void ConsumableImplementation::fillAttributeList(AttributeListMessage* alm, CreatureObject* player) {
-
 	if (maxCondition > 0) {
 		StringBuffer cond;
 		cond << (maxCondition-(int)conditionDamage) << "/" << maxCondition;
@@ -400,6 +402,10 @@ void ConsumableImplementation::fillAttributeList(AttributeListMessage* alm, Crea
 	}
 
 	alm->insertAttribute("volume", volume);
+
+	// Hide information on batender drinks
+	if (effectType == EFFECT_BARTENDER_DRINK)
+		return;
 
 	if (!isAttributeEffect() && !isSpiceEffect()) {
 		if (useCount > 0)

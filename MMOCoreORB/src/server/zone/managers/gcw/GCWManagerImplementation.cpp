@@ -51,14 +51,41 @@
 #include "server/zone/packets/scene/PlayClientEffectLocMessage.h"
 #include "server/zone/managers/gcw/sessions/ContrabandScanSession.h"
 #include "server/zone/managers/gcw/sessions/WildContrabandScanSession.h"
+#include "server/zone/managers/gcw/SecurityPatrolSpawn.h"
+#include "templates/building/SharedBuildingObjectTemplate.h"
+#include "server/zone/managers/creature/CreatureManager.h"
+#include "server/zone/managers/gcw/observers/SquadObserver.h"
 
 void GCWManagerImplementation::initialize() {
 	loadLuaConfig();
 }
 
 void GCWManagerImplementation::start() {
-	performGCWTasks(true);
-	performCheckWildContrabandScanTask();
+	auto checkGCWTask = new CheckGCWTask(_this.getReferenceUnsafeStaticCast());
+
+	if (checkGCWTask != nullptr) {
+		// typically gcwCheckTimer = 3600 - start 900 + random 450 seconds from now
+		uint64 delay = ((gcwCheckTimer / 4) + System::random(gcwCheckTimer / 8));
+		info(true) << "Scheduling checks to start in " << delay << " seconds.";
+		checkGCWTask->schedule(delay * 1000);
+	} else {
+		error() << "Unable to create new CheckGCWTask";
+		return;
+	}
+
+	if (crackdownScansEnabled && planetsWithWildScans.contains(zone->getZoneName())) {
+		auto contrabandScanTask = new CheckWildContrabandScanTask(_this.getReferenceUnsafeStaticCast());
+
+		if (contrabandScanTask != nullptr) {
+			// Server start delay Minimum 10min + gcw_manager delay
+			uint64 delay = getWildScanInterval() + 600000;
+			info(true) << "Scheduling crackdown scans to start in " << int(delay / 1000) << " seconds.";
+			contrabandScanTask->schedule(delay);
+		} else {
+			error() << "Unable to create new CheckWildContrabandScanTask";
+			return;
+		}
+	}
 }
 
 void GCWManagerImplementation::loadLuaConfig() {
@@ -79,11 +106,20 @@ void GCWManagerImplementation::loadLuaConfig() {
 	dnaStrandLength = lua->getGlobalInt("dnaStrandLength");
 	powerSwitchCount = lua->getGlobalInt("powerSwitchCount");
 	destructionTimer = lua->getGlobalInt("destructionTimer");
-	maxBases = lua->getGlobalInt("maxBases");
+
+	maxBasesPerPlanet = lua->getGlobalInt("maxBasesPerPlanet");
+	maxBasesPerPlayer = lua->getGlobalInt("maxBasesPerPlayer");
+	basePlacementDelay = lua->getGlobalInt("basePlacementDelay");
+	placeInCombat = lua->getGlobalBoolean("placeInCombat");
+	allowPveBases = lua->getGlobalBoolean("allowPveBases");
+	allowBaseComplex = lua->getGlobalBoolean("allowBaseComplex");
+	baseComplexSize = lua->getGlobalInt("baseComplexSize");
+	nearbyBaseDistance = lua->getGlobalInt("nearbyBaseDistance");
+	donationCooldown = lua->getGlobalInt("donationCooldown");
+
 	overtCooldown = lua->getGlobalInt("overtCooldown");
 	reactivationTimer = lua->getGlobalInt("reactivationTimer");
 	turretAutoFireTimeout = lua->getGlobalInt("turretAutoFireTimeout");
-	maxBasesPerPlayer = lua->getGlobalInt("maxBasesPerPlayer");
 	spawnBaseAlarms = lua->getGlobalBoolean("spawnBaseAlarms");
 	bonusXP = lua->getGlobalInt("bonusXP");
 	winnerBonus = lua->getGlobalInt("winnerBonus");
@@ -93,10 +129,13 @@ void GCWManagerImplementation::loadLuaConfig() {
 	spawnDefenses = lua->getGlobalInt("spawnDefenses");
 	crackdownScansEnabled = lua->getGlobalBoolean("crackdownScansEnabled");
 	crackdownScanPrivilegedPlayers = lua->getGlobalBoolean("crackdownScanPrivilegedPlayers");
+	wildScanInterval = lua->getGlobalInt("wildScanInterval") * 1000;
+	wildScanLoginDelay = lua->getGlobalInt("wildScanLoginDelay") * 1000;
+	wildScanChance = lua->getGlobalInt("wildScanChance");
 	crackdownPlayerScanCooldown = lua->getGlobalInt("crackdownPlayerScanCooldown") * 1000;
+	crackdownScannerCooldown = lua->getGlobalInt("crackdownScannerCooldown") * 1000;
 	crackdownContrabandFineCredits = lua->getGlobalInt("crackdownContrabandFineCredits");
 	crackdownContrabandFineFactionPoints = lua->getGlobalInt("crackdownContrabandFineFactionPoints");
-	crackdownPerformanceWildScanPlayerFindRadius = lua->getGlobalInt("crackdownPerformanceWildScanPlayerFindRadius");
 
 	LuaObject nucleotides = lua->getGlobalObject("dnaNucleotides");
 	if (nucleotides.isValidTable()) {
@@ -246,6 +285,38 @@ void GCWManagerImplementation::loadLuaConfig() {
 
 	termTemps.pop();
 
+	LuaObject squadFormationTable = lua->getGlobalObject("squadFormations");
+
+	if (squadFormationTable.isValidTable()) {
+		for (int i = 1; i <= squadFormationTable.getTableSize(); i++) {
+			LuaObject squadFormation = squadFormationTable.getObjectAt(i);
+
+			if (squadFormation.isValidTable()) {
+				String squadType = squadFormation.getStringAt(1);
+				LuaObject squadTemplates = squadFormation.getObjectAt(2);
+
+				if (squadTemplates.isValidTable()) {
+					Vector<String>* temps = new Vector<String>;
+
+					for (int j = 1; j <= squadTemplates.getTableSize(); j++) {
+						String temp = squadTemplates.getStringAt(j);
+
+						temps->add(temp);
+					}
+					squadFormations.put(squadType, temps);
+				}
+
+				squadTemplates.pop();
+			}
+
+			squadFormation.pop();
+		}
+	}
+
+	squadFormationTable.pop();
+
+	info("Loaded " + String::valueOf(squadFormations.size()) + " total squad formations.", true);
+
 	delete lua;
 	lua = nullptr;
 }
@@ -257,7 +328,7 @@ void GCWManagerImplementation::stop() {
 	gcwDestroyTasks.removeAll();
 }
 
-void GCWManagerImplementation::performGCWTasks(bool initial) {
+void GCWManagerImplementation::performGCWTasks() {
 	Locker locker(_this.getReferenceUnsafeStaticCast());
 
 	int totalBase = gcwBaseList.size();
@@ -267,6 +338,7 @@ void GCWManagerImplementation::performGCWTasks(bool initial) {
 	uint64 thisOid;
 	int rebelCheck = 0, rebelsScore = 0;
 	int imperialCheck = 0, imperialsScore = 0;
+	int totalPlayerBases = 0;
 
 	for (int i = 0; i < gcwBaseList.size(); i++) {
 		thisOid = getBase(i)->getObjectID();
@@ -275,6 +347,27 @@ void GCWManagerImplementation::performGCWTasks(bool initial) {
 
 		if (building == nullptr)
 			continue;
+
+		if (building->getFactionBaseType() == PLAYERFACTIONBASE) {
+			// If PvE Bases are disallowed, schedule for destruct and do not add to count
+			if (!allowPveBases && !(building->getPvpStatusBitmask() & CreatureFlag::OVERT)) {
+				building->info(true) << " GCW PvE Base scheduled for destruction -- Base ID: " << building->getObjectID();
+
+				scheduleBaseDestruction(building, nullptr, true);
+				continue;
+			}
+
+			// Update Base Count
+			totalPlayerBases++;
+
+			// Total bases on the planet are greater then the set amount in gcw_manager.lua schedule bases over the alowed amount for destruct
+			if (totalPlayerBases > maxBasesPerPlanet) {
+				building->info(true) << " GCW Base over Planet Capacity scheduled for destruction -- Base ID: " << building->getObjectID();
+
+				scheduleBaseDestruction(building, nullptr, true);
+				continue;
+			}
+		}
 
 		String templateString = building->getObjectTemplate()->getFullTemplateString();
 		int pointsValue = getPointValue(templateString);
@@ -291,6 +384,8 @@ void GCWManagerImplementation::performGCWTasks(bool initial) {
 				imperialsScore += pointsValue;
 		}
 
+		verifyMinefields(building);
+		verifyScanners(building);
 		verifyTurrets(building);
 	}
 
@@ -302,15 +397,54 @@ void GCWManagerImplementation::performGCWTasks(bool initial) {
 	updateWinningFaction();
 	spawnGcwControlBanners();
 
-	uint64 timer = gcwCheckTimer * 1000;
-
-	if (initial) {
-		// randomize a bit so every zone doesn't run it's check at the same time
-		timer = (System::random(gcwCheckTimer / 4) + gcwCheckTimer) * 1000;
-	}
-
 	CheckGCWTask* task = new CheckGCWTask(_this.getReferenceUnsafeStaticCast());
-	task->schedule(timer);
+	task->schedule(gcwCheckTimer * 1000);
+}
+
+void GCWManagerImplementation::verifyMinefields(BuildingObject* building) {
+	DestructibleBuildingDataComponent* baseData = getDestructibleBuildingData(building);
+
+	if (baseData == nullptr)
+		return;
+
+	ZoneServer* zoneServer = zone->getZoneServer();
+
+	if (zoneServer == nullptr)
+		return;
+
+	Locker blocker(building);
+
+	for (int i = 0; i < baseData->getTotalMinefieldCount(); ++i) {
+		uint64 minefieldID = baseData->getMinefieldID(i);
+
+		ManagedReference<SceneObject*> minefield = zoneServer->getObject(minefieldID);
+
+		if (minefield == nullptr)
+			baseData->setMinefieldID(i, 0);
+	}
+}
+
+void GCWManagerImplementation::verifyScanners(BuildingObject* building) {
+	DestructibleBuildingDataComponent* baseData = getDestructibleBuildingData(building);
+
+	if (baseData == nullptr)
+		return;
+
+	ZoneServer* zoneServer = zone->getZoneServer();
+
+	if (zoneServer == nullptr)
+		return;
+
+	Locker blocker(building);
+
+	for (int i = 0; i < baseData->getTotalScannerCount(); ++i) {
+		uint64 scannerID = baseData->getScannerID(i);
+
+		ManagedReference<SceneObject*> scanner = zoneServer->getObject(scannerID);
+
+		if (scanner == nullptr)
+			baseData->setScannerID(i, 0);
+	}
 }
 
 void GCWManagerImplementation::verifyTurrets(BuildingObject* building) {
@@ -332,7 +466,8 @@ void GCWManagerImplementation::verifyTurrets(BuildingObject* building) {
 
 	for (int i = 0; i < baseData->getTotalTurretCount(); ++i) {
 		uint64 turretID = baseData->getTurretID(i);
-		ManagedReference<SceneObject*> turret = zoneServer->getObject(baseData->getTurretID(i));
+
+		ManagedReference<SceneObject*> turret = zoneServer->getObject(turretID);
 
 		if (turret != nullptr)
 			turretCount++;
@@ -361,18 +496,20 @@ bool GCWManagerImplementation::canPlaceMoreBases(CreatureObject* creature) {
 	return true;
 }
 
-int GCWManagerImplementation::getBaseCount(CreatureObject* creature) {
+int GCWManagerImplementation::getBaseCount(CreatureObject* creature, bool pvpOnly) {
 	if (creature == nullptr || !creature->isPlayerCreature())
 		return 0;
 
 	PlayerObject* ghost = creature->getPlayerObject();
-	if (ghost == nullptr)
+
+	if (ghost == nullptr || ghost->isPrivileged())
 		return 0;
 
 	if (zone == nullptr)
 		return 0;
 
 	ZoneServer* server = zone->getZoneServer();
+
 	if (server == nullptr)
 		return 0;
 
@@ -380,8 +517,16 @@ int GCWManagerImplementation::getBaseCount(CreatureObject* creature) {
 	for (int i = 0; i < ghost->getTotalOwnedStructureCount(); ++i) {
 		ManagedReference<SceneObject*> structure = server->getObject(ghost->getOwnedStructure(i));
 
-		if (structure != nullptr && structure->isGCWBase())
-			baseCount++;
+		if (structure != nullptr && structure->isGCWBase()) {
+			if (pvpOnly) {
+				Reference<BuildingObject*> building = structure->asBuildingObject();
+
+				if (building != nullptr && (building->getPvpStatusBitmask() & CreatureFlag::OVERT))
+					baseCount++;
+			} else {
+				baseCount++;
+			}
+		}
 	}
 
 	return baseCount;
@@ -425,26 +570,33 @@ void GCWManagerImplementation::spawnGcwControlBanners() {
 	luaSpawnCityControlBanners->callFunction();
 }
 
-bool GCWManagerImplementation::hasTooManyBasesNearby(int x, int y) {
+bool GCWManagerImplementation::hasTooManyBasesNearby(float x, float y) {
 	if (zone == nullptr)
 		return true;
 
-	SortedVector<QuadTreeEntry*> inRangeObjects;
-	zone->getInRangeObjects(x, y, 600, &inRangeObjects, true, false);
-	int count = 0;
+	SortedVector<QuadTreeEntry* > closeEntryObjects;
+	zone->getInRangeObjects(x, y, nearbyBaseDistance, &closeEntryObjects, true, false);
 
-	for (int i = 0; i < inRangeObjects.size(); ++i) {
-		SceneObject* scene = cast<SceneObject*>(inRangeObjects.get(i));
+	int count = 0;
+	uint32 tempStrucHash = STRING_HASHCODE("temporary_structure");
+
+	for (int i = 0; i < closeEntryObjects.size(); ++i) {
+		SceneObject* scene = cast<SceneObject*>(closeEntryObjects.get(i));
 
 		if (scene == nullptr)
 			continue;
 
-		if (scene->isGCWBase())
+		// Check for other bases or structures being placed
+		if (scene->isGCWBase() || (scene->isInstallationObject() && (scene->getObjectNameStringIdName().hashCode() == tempStrucHash)))
 			count++;
-	}
 
-	if (count >= 3)
-		return true;
+		// Stop iteration if the count breaks the config options
+		if (!allowBaseComplex && count > 0) {
+			return true;
+		} else if (allowBaseComplex && count >= baseComplexSize) {
+			return true;
+		}
+	}
 
 	return false;
 }
@@ -594,10 +746,12 @@ void GCWManagerImplementation::addMinefield(BuildingObject* building, SceneObjec
 		baseData->addMinefield(baseData->getTotalMinefieldCount(), minefield->getObjectID());
 	else
 		baseData->addMinefield(baseData->getTotalMinefieldCount(), 0);
+
+	verifyMinefields(building);
 }
 
 void GCWManagerImplementation::addScanner(BuildingObject* building, SceneObject* scanner) {
-	if (building == nullptr)
+	if (building == nullptr || !ConfigManager::instance()->useCovertOvertSystem())
 		return;
 
 	DestructibleBuildingDataComponent* baseData = getDestructibleBuildingData(building);
@@ -611,6 +765,8 @@ void GCWManagerImplementation::addScanner(BuildingObject* building, SceneObject*
 		baseData->addScanner(baseData->getTotalScannerCount(), scanner->getObjectID());
 	else
 		baseData->addScanner(baseData->getTotalScannerCount(), 0);
+
+	verifyScanners(building);
 }
 
 void GCWManagerImplementation::addTurret(BuildingObject* building, SceneObject* turret) {
@@ -657,6 +813,157 @@ void GCWManagerImplementation::addBaseAlarm(BuildingObject* building, SceneObjec
 	}
 }
 
+uint64 GCWManagerImplementation::spawnSecurityPatrol(BuildingObject* building, String &patrol, Vector3 &location, uint64 parentID, float direction, bool stationary, bool attackable) {
+	if (zone == nullptr || patrol == "")
+		return 0;
+
+	Vector<String>* squadSpawns = nullptr;
+
+	for (int i = 0; i < squadFormations.size(); i ++) {
+		String formation = squadFormations.elementAt(i).getKey();
+
+		// Check for proper faction and size in the squad string
+		if (formation.hashCode() == patrol.hashCode()) {
+			squadSpawns = squadFormations.elementAt(i).getValue();
+			break;
+		}
+	}
+
+	if (squadSpawns == nullptr || squadSpawns->size() <= 0) {
+		return 0;
+	}
+
+	CreatureManager* creatureManager = zone->getCreatureManager();
+	ManagedReference<SquadObserver*> squadObserver = new SquadObserver();
+
+	if (creatureManager == nullptr || squadObserver == nullptr)
+		return 0;
+
+	AiAgent* squadLeader = nullptr;
+
+	// Handle spawning squad in formation
+	for (int j = 0; j < squadSpawns->size(); j++) {
+		String spawn = squadSpawns->get(j);
+
+		if (spawn == "")
+			continue;
+
+		float xOffset = 0.f;
+		float yOffset = 0.f;
+
+		if (j > 0) {
+			if (j % 2) {
+				xOffset = 0.5;
+				yOffset = j* -1;
+			} else {
+				xOffset = -0.5;
+				yOffset = (j - 1) * -1;
+			}
+		}
+
+		// Get proper rotated coordinates
+		float xOffsetRotated = xOffset * Math::cos(direction) + yOffset * Math::sin(direction);
+		float yOffsetRotated = -xOffset * Math::sin(direction) + yOffset * Math::cos(direction);
+
+		float x = location.getX() + xOffsetRotated;
+		float y = location.getY() + yOffsetRotated;
+
+		if (building != nullptr) {
+			x += building->getPositionX();
+			y += building->getPositionY();
+		}
+
+		float z = CollisionManager::getWorldFloorCollision(x, y, zone, false);
+
+		AiAgent* agent = cast<AiAgent*>(creatureManager->spawnCreature(spawn.hashCode(), 0, x, z, y, 0, false, direction));
+
+		if (agent == nullptr)
+			continue;
+
+		Locker lock(agent);
+
+		// If gcw base is not null, add security patrols to the child creatures so they despawn if it is destroyed
+		if (building != nullptr) {
+			Locker bLocker(building, agent);
+			building->addChildCreatureObject(agent);
+		}
+
+		if (!attackable)
+			agent->setPvpStatusBitmask(0);
+
+		squadObserver->addMember(agent);
+		agent->registerObserver(ObserverEventType::SQUAD, squadObserver);
+
+		if (j == 0) {
+			squadLeader = agent;
+
+			if (stationary) {
+				squadLeader->addCreatureFlag(CreatureFlag::STATIC);
+			} else {
+				squadLeader->addCreatureFlag(CreatureFlag::SQUAD);
+				squadLeader->setMovementState(AiAgent::PATROLLING);
+			}
+
+			// AI Template must be updated after the creature flags are set but before anything is written to Blackboard
+			agent->setAITemplate();
+			agent->clearPatrolPoints();
+		} else {
+			if (stationary) {
+				agent->addCreatureFlag(CreatureFlag::STATIC);
+			} else {
+				agent->addCreatureFlag(CreatureFlag::FOLLOW);
+				agent->addCreatureFlag(CreatureFlag::SQUAD);
+			}
+
+			agent->setAITemplate();
+			agent->clearPatrolPoints();
+
+			// Set their movement offset so they move in formation
+			Vector3 formationOffset;
+			formationOffset.setX(xOffset);
+			formationOffset.setY(yOffset);
+			agent->writeBlackboard("formationOffset", formationOffset);
+
+			if (!stationary && squadLeader != nullptr) {
+				Locker sLocker(squadLeader, agent);
+
+				agent->setFollowObject(squadLeader);
+				agent->setMovementState(AiAgent::FOLLOWING);
+			}
+		}
+	}
+
+	return squadLeader != nullptr ? squadLeader->getObjectID() : 0;
+}
+
+void GCWManagerImplementation::spawnBaseSecurityPatrols(BuildingObject* building) {
+	if (building == nullptr)
+		return;
+
+	SharedBuildingObjectTemplate* baseTemplate = cast<SharedBuildingObjectTemplate*>(building->getObjectTemplate());
+
+	if (baseTemplate == nullptr)
+		return;
+
+	int spawns = baseTemplate->getSecuritySpawnsSize();
+
+	// Get the security spawns from the GCW base template
+	for (int i = 0; i < spawns; i++) {
+		const SecurityPatrolSpawn* patrolSpawn = baseTemplate->getSecurityPatrol(i);
+
+		if (patrolSpawn == nullptr)
+			continue;
+
+		Vector3 location = patrolSpawn->getLocation();
+		String patrol = patrolSpawn->getPatrol();
+
+		float direction = building->getDirection()->getRadians();
+
+		// Spawn each secuity patrol in the Vector
+		spawnSecurityPatrol(building, patrol, location, 0, direction);
+	}
+}
+
 // PRE: Nothing needs to be locked
 // should only be called by the startvulnerabilityTask or when loading from the db in the middle of vuln
 void GCWManagerImplementation::startVulnerability(BuildingObject* building) {
@@ -680,7 +987,10 @@ void GCWManagerImplementation::startVulnerability(BuildingObject* building) {
 	if (building->getZone() == nullptr)
 		return;
 
+	verifyMinefields(building);
+	verifyScanners(building);
 	verifyTurrets(building);
+
 	spawnBaseTerminals(building);
 
 	if (building->getPvpStatusBitmask() & CreatureFlag::OVERT)
@@ -731,7 +1041,11 @@ void GCWManagerImplementation::endVulnerability(BuildingObject* building) {
 
 	// schedule
 	scheduleVulnerabilityStart(building);
+
+	verifyMinefields(building);
+	verifyScanners(building);
 	verifyTurrets(building);
+
 	deactivateBaseAlarms(building);
 	building->broadcastCellPermissions();
 }
@@ -1039,6 +1353,27 @@ bool GCWManagerImplementation::isFacilityRebooting(BuildingObject* building) {
 	return (baseData->getState() == DestructibleBuildingDataComponent::REBOOTSEQUENCE);
 }
 
+bool GCWManagerImplementation::isPlanetCapped() {
+	Locker locker(_this.getReferenceUnsafeStaticCast());
+
+	int totalBases = gcwBaseList.size();
+	int totalPlayerBases = 0;
+
+	for (int i = 0; i < totalBases; i++) {
+		Reference<BuildingObject*> base = getBase(i);
+
+		if (base == nullptr)
+			continue;
+
+		if (!(base->getFactionBaseType() == PLAYERFACTIONBASE))
+			continue;
+
+		totalPlayerBases++;
+	}
+
+	return maxBasesPerPlanet <= totalPlayerBases;
+}
+
 DestructibleBuildingDataComponent* GCWManagerImplementation::getDestructibleBuildingData(BuildingObject* building) {
 	DestructibleBuildingDataComponent* baseData = nullptr;
 
@@ -1094,6 +1429,24 @@ bool GCWManagerImplementation::areOpposingFactions(int faction1, int faction2) {
 		return false;
 
 	return faction1 != faction2;
+}
+
+bool GCWManagerImplementation::isProperFactionStatus(CreatureObject* player) {
+	if (player == nullptr || !player->isPlayerCreature())
+		return false;
+
+	if (ConfigManager::instance()->useCovertOvertSystem()) {
+		PlayerObject* ghost = player->getPlayerObject();
+
+		if (ghost != nullptr) {
+			Locker lock(player);
+			ghost->updateLastGcwPvpCombatActionTimestamp();
+		}
+
+		return true;
+	}
+
+	return player->getFactionStatus() > FactionStatus::ONLEAVE;
 }
 
 void GCWManagerImplementation::awardSlicingXP(CreatureObject* creature, const String& xpType, int val) {
@@ -1322,6 +1675,7 @@ void GCWManagerImplementation::completeSecuritySlice(CreatureObject* creature, T
 	baseData->setState(DestructibleBuildingDataComponent::SLICED);
 
 	activateBaseAlarms(building, HACKALARM);
+	spawnBaseSecurityPatrols(building);
 }
 
 void GCWManagerImplementation::failSecuritySlice(TangibleObject* securityTerminal) {
@@ -1792,8 +2146,8 @@ void GCWManagerImplementation::flipPowerSwitch(BuildingObject* building, Vector<
 	switchStates.get(affectedSwitch) = !switchStates.get(affectedSwitch);
 }
 
-void GCWManagerImplementation::scheduleBaseDestruction(BuildingObject* building, CreatureObject* creature) {
-	if (isBaseVulnerable(building) && !hasDestroyTask(building->getObjectID())) {
+void GCWManagerImplementation::scheduleBaseDestruction(BuildingObject* building, CreatureObject* creature, bool force) {
+	if ((force || isBaseVulnerable(building)) && !hasDestroyTask(building->getObjectID())) {
 		DestructibleBuildingDataComponent* baseData = getDestructibleBuildingData(building);
 
 		if (baseData == nullptr)
@@ -2195,6 +2549,9 @@ void GCWManagerImplementation::notifyInstallationDestruction(InstallationObject*
 			} else if (baseData != nullptr && baseData->hasMinefield(installation->getObjectID())) {
 				if (installation->isMinefield())
 					notifyMinefieldDestruction(building, installation);
+			} else if (baseData != nullptr && baseData->hasScanner(installation->getObjectID())) {
+				if (installation->isScanner())
+					notifyScannerDestruction(building, installation);
 			} else {
 				clock.release();
 				StructureManager::instance()->destroyStructure(installation);
@@ -2212,6 +2569,9 @@ void GCWManagerImplementation::notifyInstallationDestruction(InstallationObject*
 }
 
 void GCWManagerImplementation::notifyTurretDestruction(BuildingObject* building, InstallationObject* turret) {
+	if (building == nullptr || turret == nullptr)
+		return;
+
 	DestructibleBuildingDataComponent* baseData = getDestructibleBuildingData(building);
 
 	if (baseData == nullptr)
@@ -2231,7 +2591,11 @@ void GCWManagerImplementation::notifyTurretDestruction(BuildingObject* building,
 }
 
 void GCWManagerImplementation::notifyMinefieldDestruction(BuildingObject* building, InstallationObject* minefield) {
+	if (building == nullptr || minefield == nullptr)
+		return;
+
 	DestructibleBuildingDataComponent* baseData = getDestructibleBuildingData(building);
+
 	if (baseData == nullptr)
 		return;
 
@@ -2242,22 +2606,48 @@ void GCWManagerImplementation::notifyMinefieldDestruction(BuildingObject* buildi
 
 	baseData->setMinefieldID(indx, 0);
 
-	// see if all the turrets are destroyed
-	int defensecount = 0;
-
-	for (int i = 0; i < baseData->getTotalMinefieldCount(); i++) {
-		if (baseData->getMinefieldOID(i))
-			defensecount++;
-	}
-
 	minefield->destroyObjectFromWorld(true);
 	minefield->destroyObjectFromDatabase(true);
+
+	verifyMinefields(building);
+}
+
+void GCWManagerImplementation::notifyScannerDestruction(BuildingObject* building, InstallationObject* scanner) {
+	if (building == nullptr || scanner == nullptr)
+		return;
+
+	DestructibleBuildingDataComponent* baseData = getDestructibleBuildingData(building);
+
+	if (baseData == nullptr)
+		return;
+
+	int indx = baseData->getIndexOfScanner(scanner->getObjectID());
+
+	if (indx < 0)
+		return;
+
+	baseData->setScannerID(indx, 0);
+
+	scanner->destroyObjectFromWorld(true);
+	scanner->destroyObjectFromDatabase(true);
+
+	verifyScanners(building);
 }
 
 void GCWManagerImplementation::sendSelectDeedToDonate(BuildingObject* building, CreatureObject* creature) {
+	if (building == nullptr || creature == nullptr)
+		return;
+
+	Locker lock (building);
+
+	if (!building->checkCooldownRecovery("defense_donation")) {
+		creature->sendSystemMessage("This GCW base cannot have more defenses donated at this time.");
+		return;
+	}
+
 	DestructibleBuildingDataComponent* baseData = getDestructibleBuildingData(building);
 
-	if (creature == nullptr || baseData == nullptr)
+	if (baseData == nullptr)
 		return;
 
 	ManagedReference<PlayerObject*> ghost = creature->getPlayerObject();
@@ -2285,16 +2675,26 @@ void GCWManagerImplementation::sendSelectDeedToDonate(BuildingObject* building, 
 	donate->setCancelButton(true, "@cancel");
 	donate->setCallback(new DonateDefenseSuiCallback(zone->getZoneServer()));
 
+	bool useCovertOvert = ConfigManager::instance()->useCovertOvertSystem();
+
 	for (int i = 0; i < inv->getContainerObjectsSize(); ++i) {
 		ManagedReference<SceneObject*> inventoryObject = inv->getContainerObject(i);
 
 		if (inventoryObject->isDeedObject()) {
 			ManagedReference<Deed*> deed = dynamic_cast<Deed*>(inventoryObject.get());
+
 			if (deed != nullptr) {
 				Reference<SharedObjectTemplate*> generatedTemplate = TemplateManager::instance()->getTemplate(deed->getGeneratedObjectTemplate().hashCode());
 
-				if (generatedTemplate != nullptr && (generatedTemplate->getGameObjectType() == SceneObjectType::MINEFIELD ||
-													 generatedTemplate->getGameObjectType() == SceneObjectType::DESTRUCTIBLE)) {
+				if (generatedTemplate == nullptr)
+					continue;
+
+				int objectType = generatedTemplate->getGameObjectType();
+
+				if (!useCovertOvert && objectType == SceneObjectType::COVERTSCANNER)
+					continue;
+
+				if (objectType == SceneObjectType::MINEFIELD || objectType == SceneObjectType::DESTRUCTIBLE || objectType == SceneObjectType::COVERTSCANNER) {
 					donate->addMenuItem(inventoryObject->getDisplayedName(), inventoryObject->getObjectID());
 				}
 			}
@@ -2310,7 +2710,11 @@ void GCWManagerImplementation::sendSelectDeedToDonate(BuildingObject* building, 
 }
 
 void GCWManagerImplementation::performDefenseDonation(BuildingObject* building, CreatureObject* creature, uint64 deedOID) {
+	if (building == nullptr || creature == nullptr)
+		return;
+
 	ZoneServer* zoneServer = zone->getZoneServer();
+
 	if (zoneServer == nullptr)
 		return;
 
@@ -2323,6 +2727,8 @@ void GCWManagerImplementation::performDefenseDonation(BuildingObject* building, 
 
 	if (ghost == nullptr)
 		return;
+
+	Locker blocker(building, creature);
 
 	if (!(building->getPvpStatusBitmask() & CreatureFlag::OVERT))
 		return;
@@ -2351,29 +2757,35 @@ void GCWManagerImplementation::performDefenseDonation(BuildingObject* building, 
 		return;
 	}
 
-	if (defenseObj->isDeedObject()) {
-		ManagedReference<Deed*> deed = dynamic_cast<Deed*>(defenseObj.get());
-		if (deed != nullptr) {
-			Reference<SharedObjectTemplate*> generatedTemplate = TemplateManager::instance()->getTemplate(deed->getGeneratedObjectTemplate().hashCode());
+	if (!defenseObj->isDeedObject())
+		return;
 
-			if (generatedTemplate == nullptr) {
-				return;
-			}
+	ManagedReference<Deed*> deed = dynamic_cast<Deed*>(defenseObj.get());
 
-			if (generatedTemplate->getGameObjectType() == SceneObjectType::MINEFIELD) {
-				performDonateMinefield(building, creature, deed);
-				return;
-			} else if (generatedTemplate->getGameObjectType() == SceneObjectType::DESTRUCTIBLE) {
-				performDonateTurret(building, creature, deed);
-				return;
-			}
-		}
+	if (deed == nullptr)
+		return;
+
+	Reference<SharedObjectTemplate*> generatedTemplate = TemplateManager::instance()->getTemplate(deed->getGeneratedObjectTemplate().hashCode());
+
+	if (generatedTemplate == nullptr)
+			return;
+
+	const int objectType = generatedTemplate->getGameObjectType();
+
+	if (objectType == SceneObjectType::MINEFIELD) {
+		performDonateMinefield(building, creature, deed);
+		return;
+	} else if (objectType == SceneObjectType::COVERTSCANNER) {
+		performDonateScanner(building, creature, deed);
+		return;
+	} else if (objectType == SceneObjectType::DESTRUCTIBLE) {
+		performDonateTurret(building, creature, deed);
+		return;
+	} else {
+		StringIdChatParameter param("@faction/faction_hq/faction_hq_response:terminal_response43"); // This facility does not accept deeds of type '%TO'. Cancelling donation..."
+		param.setTO(defenseObj->getObjectName());
+		creature->sendSystemMessage(param);
 	}
-
-	StringIdChatParameter param("@faction/faction_hq/faction_hq_response:terminal_response43"); // This facility does not accept deeds of type '%TO'. Cancelling donation..."
-	param.setTO(defenseObj->getObjectName());
-	creature->sendSystemMessage(param);
-	return;
 }
 
 void GCWManagerImplementation::performDonateMinefield(BuildingObject* building, CreatureObject* creature, Deed* deed) {
@@ -2385,8 +2797,6 @@ void GCWManagerImplementation::performDonateMinefield(BuildingObject* building, 
 
 	int currentMinefieldIndex = 0;
 
-	Locker block(building, creature);
-
 	DestructibleBuildingDataComponent* baseData = getDestructibleBuildingData(building);
 
 	if (baseData == nullptr)
@@ -2395,14 +2805,15 @@ void GCWManagerImplementation::performDonateMinefield(BuildingObject* building, 
 	// go through it and inf the first available mine
 	int minefieldIndex = 0;
 	for (minefieldIndex = 0; minefieldIndex < baseData->getTotalMinefieldCount(); minefieldIndex++) {
-		if (baseData->getMinefieldOID(minefieldIndex) == 0)
+		if (baseData->getMinefieldID(minefieldIndex) == 0)
 			break;
 	}
 
-	// this is turret donation
+	// Minefield donation
 	int nextAvailableMinefield = 0;
+
 	for (nextAvailableMinefield = 0; nextAvailableMinefield < baseData->getTotalTurretCount(); nextAvailableMinefield++) {
-		if (baseData->getMinefieldOID(nextAvailableMinefield) == 0)
+		if (baseData->getMinefieldID(nextAvailableMinefield) == 0)
 			break;
 	}
 
@@ -2414,7 +2825,7 @@ void GCWManagerImplementation::performDonateMinefield(BuildingObject* building, 
 		return;
 	}
 
-	// now find the coords of the nth turret
+	// now find the coords of the nth minefield
 	for (int i = 0; i < baseServerTemplate->getChildObjectsSize(); ++i) {
 		child = baseServerTemplate->getChildObject(i);
 		minefieldTemplate = nullptr;
@@ -2447,12 +2858,92 @@ void GCWManagerImplementation::performDonateMinefield(BuildingObject* building, 
 		params.setStringId("@faction/faction_hq/faction_hq_response:terminal_response45"); //"You successfully donate a %TO deed to the current facility."
 		params.setTO(deed->getObjectNameStringIdFile(), deed->getObjectNameStringIdName());
 		creature->sendSystemMessage(params);
-		// TODO: Implement .. verify minefields
 
-		block.release();
+		building->addCooldown("defense_donation", donationCooldown * 1000);
+
+		verifyMinefields(building);
 
 		Locker clock(deed, creature);
 		deed->destroyObjectFromWorld(true);
+	}
+}
+
+void GCWManagerImplementation::performDonateScanner(BuildingObject* building, CreatureObject* creature,  Deed* scannerDeed) {
+	if (building == nullptr || creature == nullptr || scannerDeed == nullptr)
+		return;
+
+	String serverTemplatePath = scannerDeed->getGeneratedObjectTemplate();
+	TemplateManager* templateManager = TemplateManager::instance();
+	Reference<SharedObjectTemplate*> baseServerTemplate = building->getObjectTemplate();
+
+	Reference<SharedObjectTemplate*> scannerTemplate = nullptr;
+	const ChildObject* child = nullptr;
+	int currentScannerIndex = 0;
+
+	DestructibleBuildingDataComponent* baseData = getDestructibleBuildingData(building);
+
+	if (baseData == nullptr)
+		return;
+
+	int nextAvailableScanner = 0;
+
+	for (nextAvailableScanner = 0; nextAvailableScanner < baseData->getTotalScannerCount(); nextAvailableScanner++) {
+		uint64 scannerID = baseData->getScannerID(nextAvailableScanner);
+
+		if (scannerID == 0)
+			break;
+	}
+
+	if (nextAvailableScanner >= baseData->getTotalScannerCount()) {
+		StringIdChatParameter params;
+		params.setStringId("@faction/faction_hq/faction_hq_response:terminal_response44"); // This facility cannot accept deeds of type '%TO' at this time. Cancelling donation...
+		params.setTO(scannerDeed->getObjectNameStringIdFile(), scannerDeed->getObjectNameStringIdName());
+		creature->sendSystemMessage(params);
+		return;
+	}
+
+	for (int i = 0; i < baseServerTemplate->getChildObjectsSize(); ++i) {
+		child = baseServerTemplate->getChildObject(i);
+		scannerTemplate = nullptr;
+
+		if (child != nullptr) {
+			scannerTemplate = TemplateManager::instance()->getTemplate(child->getTemplateFile().hashCode());
+
+			if (scannerTemplate != nullptr && scannerTemplate->getGameObjectType() == SceneObjectType::COVERTSCANNER) {
+				if (currentScannerIndex == nextAvailableScanner) {
+					break;
+				} else {
+					currentScannerIndex++;
+				}
+			} else {
+				info("Invalid scanner template: " + child->getTemplateFile());
+			}
+		}
+	}
+
+	if (child == nullptr || scannerTemplate == nullptr) {
+		return;
+	}
+
+	uint64 scannerOID = addChildInstallationFromDeed(building, child, creature, scannerDeed);
+
+	if (scannerOID > 0) {
+		baseData->setScannerID(currentScannerIndex, scannerOID);
+
+		if (isBaseVulnerable(building))
+			baseData->setDefenseAddedThisVuln(true);
+
+		StringIdChatParameter params;
+		params.setStringId("@faction/faction_hq/faction_hq_response:terminal_response45");  //"You successfully donate a %TO deed to the current facility."
+		params.setTO(scannerDeed->getObjectNameStringIdFile(), scannerDeed->getObjectNameStringIdName());
+		creature->sendSystemMessage(params);
+
+		building->addCooldown("defense_donation", donationCooldown * 1000);
+
+		verifyScanners(building);
+
+		Locker clock(scannerDeed, creature);
+		scannerDeed->destroyObjectFromWorld(true);
 	}
 }
 
@@ -2464,8 +2955,6 @@ void GCWManagerImplementation::performDonateTurret(BuildingObject* building, Cre
 	Reference<SharedObjectTemplate*> turretTemplate = nullptr;
 	const ChildObject* child = nullptr;
 	int currentTurretIndex = 0;
-
-	Locker block(building, creature);
 
 	DestructibleBuildingDataComponent* baseData = getDestructibleBuildingData(building);
 
@@ -2523,8 +3012,9 @@ void GCWManagerImplementation::performDonateTurret(BuildingObject* building, Cre
 		params.setTO(turretDeed->getObjectNameStringIdFile(), turretDeed->getObjectNameStringIdName());
 		creature->sendSystemMessage(params);
 
+		building->addCooldown("defense_donation", donationCooldown * 1000);
+
 		verifyTurrets(building);
-		block.release();
 
 		Locker clock(turretDeed, creature);
 		turretDeed->destroyObjectFromWorld(true);
@@ -2567,23 +3057,25 @@ uint64 GCWManagerImplementation::addChildInstallationFromDeed(BuildingObject* bu
 
 	TangibleObject* tano = cast<TangibleObject*>(obj.get());
 
-	tano->setFaction(building->getFaction());
+	if (tano != nullptr) {
+		tano->setFaction(building->getFaction());
+		tano->setPvpStatusBitmask(building->getPvpStatusBitmask() | tano->getPvpStatusBitmask());
 
-	tano->setPvpStatusBitmask(building->getPvpStatusBitmask() | tano->getPvpStatusBitmask());
+		if (tano->isTurret())
+			tano->setDetailedDescription("Donated Turret");
 
-	if (tano->isTurret())
-		tano->setDetailedDescription("Donated Turret");
+		if (tano->isInstallationObject()) {
+			InstallationObject* instObject = cast<InstallationObject*>(tano);
 
-	if (tano->isInstallationObject()) {
-		InstallationObject* turret = cast<InstallationObject*>(tano);
-		if (turret != nullptr) {
-			turret->setOwner(building->getObjectID());
-			turret->createChildObjects();
-			turret->setDeedObjectID(deed->getObjectID());
+			if (instObject != nullptr) {
+				instObject->setOwner(building->getObjectID());
+				instObject->createChildObjects();
+				instObject->setDeedObjectID(deed->getObjectID());
+			}
 		}
 	}
 
-	zone->transferObject(obj, -1, false);
+	zone->transferObject(obj, -1, true);
 	building->getChildObjects()->put(obj);
 
 	return obj->getObjectID();
@@ -2824,30 +3316,36 @@ bool GCWManagerImplementation::runCrackdownScan(AiAgent* scanner, CreatureObject
 	if (!crackdownScansEnabled)
 		return false;
 
+	if (scanner == nullptr || player == nullptr)
+		return false;
+
+	if (player->isIncapacitated() || player->isDead())
+		return false;
+
+	if (!crackdownScanPrivilegedPlayers && player->isPlayerCreature()) {
+		PlayerObject* ghost = player->getPlayerObject();
+
+		if (ghost != nullptr && ghost->isPrivileged())
+			return false;
+	}
+
 	if (!CollisionManager::checkLineOfSight(scanner, player))
 		return false;
 
-	if (player->isIncapacitated())
-		return false;
-
-	if (!crackdownScanPrivilegedPlayers && player->isPlayerObject() && player->getPlayerObject()->isPrivileged())
-		return false;
-
-	if (!scanner->checkCooldownRecovery("crackdown_scan")) {
-		scanner->info("Contraband scan of " + player->getDisplayedName() + " (" + String::valueOf(player->getObjectID()) + ") skipped due to scanner cooldown.");
-	} else if (!player->checkCooldownRecovery("crackdown_scan")) {
+	if (!player->checkCooldownRecovery("crackdown_scan")) {
 		scanner->info("Contraband scan of " + player->getDisplayedName() + " (" + String::valueOf(player->getObjectID()) + ") skipped due to player cooldown.");
-	} else {
-		startContrabandScanSession(scanner, player, false);
-		return true;
+		return false;
 	}
 
-	return false;
+	startContrabandScanSession(scanner, player, false);
+	return true;
 }
 
 void GCWManagerImplementation::startContrabandScanSession(AiAgent* scanner, CreatureObject* player, bool enforced) {
 	ContrabandScanSession* contrabandScanSession = new ContrabandScanSession(scanner, player, getWinningFaction(), getWinningFactionDifficultyScaling(), enforced);
-	contrabandScanSession->initializeSession();
+
+	if (contrabandScanSession != nullptr)
+		contrabandScanSession->initializeSession();
 }
 
 String GCWManagerImplementation::getCrackdownInfo(CreatureObject* player) const {
@@ -2861,43 +3359,84 @@ String GCWManagerImplementation::getCrackdownInfo(CreatureObject* player) const 
 			"\nScans enabled on this planet - " + String::valueOf(planetsWithWildScans.find(zone->getZoneName()) != Vector<String>::npos) +
 			"\nPlayer has no scan cooldown - " + String::valueOf(player->checkCooldownRecovery("crackdown_scan")) +
 			"\nPlayer outside - " + String::valueOf(player->getParentID() == 0 || player->isRidingMount()) +
-			"\nIs spawning permitted at the coordinates - " + String::valueOf(zone->getPlanetManager()->isSpawningPermittedAt(player->getWorldPositionX(), player->getWorldPositionY())) +
+			"\nIs spawning permitted at the coordinates - " + String::valueOf(zone->getPlanetManager()->isSpawningPermittedAt(player->getWorldPositionX(), player->getWorldPositionY(), 0)) +
 			"\nIs player privileged - " + String::valueOf(player->getPlayerObject()->isPrivileged());
 	}
 }
 
 void GCWManagerImplementation::performCheckWildContrabandScanTask() {
-	if (!crackdownScansEnabled || planetsWithWildScans.find(zone->getZoneName()) == Vector<String>::npos) {
+	if (!crackdownScansEnabled || !planetsWithWildScans.contains(zone->getZoneName())) {
 		return;
 	}
 
-	Vector3 hitPoint = zone->getPlanetManager()->getRandomSpawnPoint();
+	auto zoneServer = ServerCore::getZoneServer();
 
-	Reference<SortedVector<ManagedReference<QuadTreeEntry*>>*> closePlayers = new SortedVector<ManagedReference<QuadTreeEntry*>>();
+	if (zoneServer == nullptr)
+		return;
 
-	zone->getInRangePlayers(hitPoint.getX(), hitPoint.getY(), crackdownPerformanceWildScanPlayerFindRadius, closePlayers);
+	auto playerManager = zoneServer->getPlayerManager();
 
-	if (closePlayers->size() > 0) {
-		int playerIndex = int(System::random(closePlayers->size() - 1));
-		SceneObject* object = cast<SceneObject*>(closePlayers->get(playerIndex).get());
-		CreatureObject* player = object->asCreatureObject();
+	if (playerManager == nullptr)
+		return;
 
-		if (player->checkCooldownRecovery("crackdown_scan") && (player->getParentID() == 0 || player->isRidingMount()) && player->getPlayerObject() != nullptr &&
-			player->getPlayerObject()->getSessionMiliSecs() > 60 * 1000 && !player->isDead() && !player->isIncapacitated() && !player->isFeigningDeath() && !player->isInCombat() &&
-			zone->getPlanetManager()->isSpawningPermittedAt(player->getWorldPositionX(), player->getWorldPositionY())) {
-			if (crackdownScanPrivilegedPlayers || (player->getPlayerObject() != nullptr && !player->getPlayerObject()->isPrivileged())) {
-				WildContrabandScanSession* wildContrabandScanSession = new WildContrabandScanSession(player, getWinningFactionDifficultyScaling());
-				wildContrabandScanSession->initializeSession();
-			}
-		} else {
-			this->info("Wild contraband scan skipped due to player " + player->getDisplayedName() + " (" + String::valueOf(player->getObjectID()) + ") not being a valid scan target.");
+	auto playerList = playerManager->getOnlinePlayerList();
+
+	for (int i = 0; i < playerList.size(); i++) {
+		auto playerID = playerList.get(i);
+
+		Reference<SceneObject*> object = zoneServer->getObject(playerID);
+
+		if (object == nullptr || !object->isPlayerCreature())
+			continue;
+
+		auto player = object->asCreatureObject();
+
+		if (player == nullptr)
+			continue;
+
+		if (player->getParentID() != 0 && !player->isRidingMount())
+			continue;
+
+		if (player->getCityRegion() != nullptr)
+			continue;
+
+		if (!player->checkCooldownRecovery("crackdown_scan"))
+			continue;
+
+		if (player->isDead() || player->isIncapacitated() || player->isFeigningDeath())
+			continue;
+
+		if (player->isInCombat())
+			continue;
+
+		auto ghost = player->getPlayerObject();
+
+		if (ghost != nullptr) {
+			if (ghost->isLinkDead())
+				continue;
+
+			if (!crackdownScanPrivilegedPlayers && ghost->isPrivileged())
+				continue;
+
+			// No scan until player session time passes the login delay
+			if (ghost->getSessionMiliSecs() < getWildScanLoginDelay())
+				continue;
 		}
-	} else {
-		this->info("Wild contraband scan found no players at " + hitPoint.toString());
+
+		if (zone->getPlanetManager()->isSpawningPermittedAt(player->getWorldPositionX(), player->getWorldPositionY(), 0) && getWildScanChance() >= System::random(100)) {
+			WildContrabandScanSession* wildContrabandScanSession = new WildContrabandScanSession(player, getWinningFactionDifficultyScaling());
+			wildContrabandScanSession->initializeSession();
+
+			break;
+		}
 	}
 
 	CheckWildContrabandScanTask* task = new CheckWildContrabandScanTask(_this.getReferenceUnsafeStaticCast());
-	task->schedule(10000);
+
+	uint64 delay = getWildScanInterval() + System::random(600000);
+
+	// Minimum Delay is 10 min
+	task->schedule(delay);
 }
 
 bool GCWManagerImplementation::isContraband(SceneObject* item) {
@@ -3144,9 +3683,12 @@ void GCWManagerImplementation::deactivateBaseAlarms(BuildingObject* building) {
 			if (hackAlarm->isTangibleObject()) {
 				TangibleObject* hackTano = hackAlarm->asTangibleObject();
 
+				if (hackTano == nullptr)
+					continue;
+
 				Locker hlocker(hackTano, building);
 
-				hackTano->setOptionsBitmask(OptionBitmask::NONE);
+				hackTano->setOptionsBitmask(OptionBitmask::NONE, true);
 			}
 		}
 	}

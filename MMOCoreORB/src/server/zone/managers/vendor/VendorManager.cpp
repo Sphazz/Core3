@@ -126,9 +126,10 @@ void VendorManager::handleDisplayStatus(CreatureObject* player, TangibleObject* 
 	String region = "@planet_n:" + vendor->getZone()->getZoneName();
 
 
-	ManagedReference<CityRegion*> regionObject = vendor->getCityRegion().get();
-	if(regionObject != nullptr)
-		region = regionObject->getRegionName();
+	ManagedReference<CityRegion*> cityRegion = vendor->getCityRegion().get();
+
+	if(cityRegion != nullptr)
+		region = cityRegion->getCityRegionName();
 
 	TerminalListVector vendorList = auctionsMap->getVendorTerminalData(planet, region, vendor);
 
@@ -239,6 +240,7 @@ void VendorManager::promptRenameVendorTo(CreatureObject* player, TangibleObject*
 	input->setCancelButton(true, "@cancel");
 	input->setPromptTitle("@player_structure:name_t");
 	input->setPromptText("@player_structure:name_d");
+	input->setDefaultInput(vendor->getCustomObjectName().toString());
 
 	player->sendMessage(input->generateMessage());
 	player->getPlayerObject()->addSuiBox(input);
@@ -338,7 +340,7 @@ void VendorManager::handleRegisterVendorCallback(CreatureObject* player, Tangibl
 	}
 
 	Reference<const PlanetMapCategory*> planetMapCategory = TemplateManager::instance()->getPlanetMapCategoryByName("vendor");
-	Reference<const PlanetMapCategory*> planetMapSubCategory = TemplateManager::instance()->getPlanetMapCategoryByName("vendor_" + planetMapCategoryName);
+	Reference<const PlanetMapSubCategory*> planetMapSubCategory = TemplateManager::instance()->getPlanetMapSubCategoryByName("vendor_" + planetMapCategoryName);
 
 	if (planetMapCategory == nullptr || planetMapSubCategory == nullptr)
 		return;

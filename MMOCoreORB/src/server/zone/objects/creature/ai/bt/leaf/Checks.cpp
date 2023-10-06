@@ -89,12 +89,26 @@ template<> bool CheckProspectAggression::check(AiAgent* agent) const {
 	if (agent->peekBlackboard("targetProspect"))
 		tar = agent->readBlackboard("targetProspect").get<ManagedReference<SceneObject*> >();
 
-	if (tar == nullptr)
+	if (tar == nullptr || !tar->isCreatureObject())
 		return false;
 
 	CreatureObject* tarCreo = tar->asCreatureObject();
 
 	return tarCreo != nullptr && agent->isAggressiveTo(tarCreo);
+}
+
+template<> bool CheckIsCamouflaged::check(AiAgent* agent) const {
+	ManagedReference<SceneObject*> target = nullptr;
+
+	if (agent->peekBlackboard("targetProspect"))
+		target = agent->readBlackboard("targetProspect").get<ManagedReference<SceneObject*> >();
+
+	if (target == nullptr || !target->isCreatureObject())
+		return false;
+
+	CreatureObject* tarCreo = target->asCreatureObject();
+
+	return tarCreo != nullptr && !agent->isCamouflaged(tarCreo);
 }
 
 template<> bool CheckFollowPosture::check(AiAgent* agent) const {
@@ -190,7 +204,13 @@ template<> bool CheckAttackInRange::check(AiAgent* agent) const {
 	float templatePadding = agent->getTemplateRadius() + followCopy->getTemplateRadius();
 	float maxRange = combatCommand->getRange();
 
-	if ((maxRange > 0 && !followCopy->isInRange(agent, maxRange)) || (maxRange <= 0 && !followCopy->isInRange(agent, agent->getWeapon()->getMaxRange() + templatePadding))) {
+	WeaponObject* currWeapon = agent->getCurrentWeapon();
+	float weapMaxRange = maxRange;
+
+	if (currWeapon != nullptr)
+		weapMaxRange = currWeapon->getMaxRange();
+
+	if ((maxRange > 0 && !followCopy->isInRange(agent, maxRange)) || (maxRange <= 0 && !followCopy->isInRange(agent, weapMaxRange + templatePadding))) {
 		return false;
 	}
 
@@ -233,10 +253,10 @@ template<> bool CheckFlee::check(AiAgent* agent) const {
 		return false;
 
 	Time* fleeDelay = agent->getFleeDelay();
-	int fleeChance = 40;
+	int fleeChance = 30;
 
 	if (agent->getPvpStatusBitmask() & CreatureFlag::AGGRESSIVE)
-		fleeChance = 20;
+		fleeChance = 15;
 
 	if (fleeDelay == nullptr || !fleeDelay->isPast() || System::random(100) > fleeChance)
 		return false;
@@ -244,6 +264,7 @@ template<> bool CheckFlee::check(AiAgent* agent) const {
 	if ((agent->getHAM(CreatureAttribute::HEALTH) < agent->getMaxHAM(CreatureAttribute::HEALTH) * checkVar)
 		|| (agent->getHAM(CreatureAttribute::ACTION) < agent->getMaxHAM(CreatureAttribute::ACTION) * checkVar)
 		|| (agent->getHAM(CreatureAttribute::MIND) < agent->getMaxHAM(CreatureAttribute::MIND) * checkVar)) {
+
 		return true;
 	}
 
@@ -529,7 +550,7 @@ template<> bool CheckCrackdownScanner::check(AiAgent* agent) const {
 }
 
 template<> bool CheckCrackdownFollowTarget::check(AiAgent* agent) const {
-	if (~agent->getCreatureBitmask() & CreatureFlag::FOLLOW)
+	if (!(agent->getCreatureBitmask() & CreatureFlag::FOLLOW))
 		return false;
 
 	ManagedReference<SceneObject*> followCopy = agent->getFollowObject().get();
@@ -583,22 +604,32 @@ template<> bool CheckChatDelay::check(AiAgent* agent) const {
 }
 
 template<> bool CheckCallForHelp::check(AiAgent* agent) const {
-	if (agent == nullptr)
+	if (agent == nullptr || agent->isDead())
 		return false;
+
+	Time* packNotify = agent->getLastPackNotify();
+
+	if (packNotify == nullptr || !packNotify->isPast()) {
+		agent->eraseBlackboard("allyProspect");
+		return false;
+	}
+
+	if (agent->peekBlackboard("allyProspect")) {
+		return true;
+	}
 
 	Time* callForHelp = agent->getLastCallForHelp();
 
-	if (callForHelp == nullptr || !callForHelp->isPast()) {
-		return false;
+	if (callForHelp != nullptr) {
+		if (!callForHelp->isPast())
+			return false;
+
+		if (System::random(100) < 75) {
+			callForHelp->updateToCurrentTime();
+			callForHelp->addMiliTime(60 * 1000);
+			return false;
+		}
 	}
-
-	if (System::random(100) < 50) {
-		callForHelp->updateToCurrentTime();
-		callForHelp->addMiliTime(45 * 1000);
-
-		return false;
-	}
-
 
 	return true;
 }
@@ -632,4 +663,100 @@ template<> bool CheckHasHarvestTargets::check(AiAgent* agent) const {
 	auto module = droid->getModule("harvest_module").castTo<DroidHarvestModuleDataComponent*>();
 
 	return module != nullptr && module->hasMoreTargets() ? true : false;
+}
+
+template<> bool CheckShouldRest::check(AiAgent* agent) const {
+	if (agent == nullptr)
+		return false;
+
+	if (!agent->isNeutral())
+		return false;
+
+	if (agent->getFollowObject() != nullptr)
+		return false;
+
+	Time* restDelay = agent->getRestDelay();
+
+	if (restDelay == nullptr || !restDelay->isPast())
+		return false;
+
+	int restChance = 40; // % chance out of 100
+	int restRoll = System::random(100);
+
+	// Chance is less than the roll, fail and add time to check again
+	if (restChance < restRoll) {
+		int delay = 45 * 1000; // Time in ms to delay checking again or resting again
+
+		restDelay->updateToCurrentTime();
+		restDelay->addMiliTime(delay);
+
+		return false;
+	}
+
+	return true;
+}
+
+template<> bool CheckStopResting::check(AiAgent* agent) const {
+	if (agent == nullptr)
+		return false;
+
+	if (agent->isInCombat() || agent->getFollowObject() != nullptr)
+		return true;
+
+	Time* restDelay = agent->getRestDelay();
+
+	if (restDelay == nullptr)
+		return true;
+
+	// Default time to rest is 45s less the 5min set on the delay when set Resting in ms
+	int resting = 255 * 1000;
+
+	if (agent->peekBlackboard("restingTime"))
+		resting = agent->readBlackboard("restingTime").get<int>();
+
+	int restedTime = restDelay->miliDifference() * -1;
+
+	if (resting < restedTime)
+		return false;
+
+	agent->eraseBlackboard("restingTime");
+
+	return true;
+}
+
+template<> bool CheckQueueSize::check(AiAgent* agent) const {
+	if (agent == nullptr)
+		return false;
+
+	int size = agent->getCommandQueueSize();
+
+	if (size >= 4) {
+		return true;
+	}
+
+	return false;
+}
+
+template<> bool CheckIsEscort::check(AiAgent* agent) const {
+	Locker lock(agent);
+
+	return agent->getCreatureBitmask() & CreatureFlag::ESCORT;
+}
+
+template<> bool CheckHasRangedWeapon::check(AiAgent* agent) const {
+	Locker lock(agent);
+
+	return agent->hasRangedWeapon();
+}
+
+template<> bool CheckHasMeleeWeapon::check(AiAgent* agent) const {
+	Locker lock(agent);
+
+	return agent->hasMeleeWeapon();
+}
+
+template<> bool CheckIsSwimming::check(AiAgent* agent) const {
+	Locker lock(agent);
+
+	return agent->isSwimming();
 }

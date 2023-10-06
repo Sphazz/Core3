@@ -77,7 +77,7 @@ int CreatureImplementation::handleObjectMenuSelect(CreatureObject* player, byte 
 void CreatureImplementation::fillAttributeList(AttributeListMessage* alm, CreatureObject* player) {
 	AiAgentImplementation::fillAttributeList(alm, player);
 
-	int creaKnowledge = player->getSkillMod("creature_knowledge");
+	int creaKnowledge = player != nullptr ?  player->getSkillMod("creature_knowledge") : 100;
 
 	if (getHideType().isEmpty() && getBoneType().isEmpty() && getMeatType().isEmpty()) {
 		if(!isPet()) // we do want to show this for pets
@@ -85,7 +85,7 @@ void CreatureImplementation::fillAttributeList(AttributeListMessage* alm, Creatu
 	}
 
 	if (creaKnowledge >= 5) {
-		if (isAggressiveTo(player))
+		if (player != nullptr && isAggressiveTo(player))
 			alm->insertAttribute("aggro", "yes");
 		else
 			alm->insertAttribute("aggro", "no");
@@ -182,16 +182,6 @@ void CreatureImplementation::fillAttributeList(AttributeListMessage* alm, Creatu
 		damageMsg << getDamageMin() << "-" << getDamageMax();
 		alm->insertAttribute("cat_wpn_damage", damageMsg.toString());
 	}
-}
-
-void CreatureImplementation::scheduleDespawn() {
-	if (getPendingTask("despawn") != nullptr)
-		return;
-
-	Reference<DespawnCreatureTask*> despawn = new DespawnCreatureTask(_this.getReferenceUnsafeStaticCast());
-	//despawn->schedule(300000); /// 5 minutes
-	//addPendingTask("despawn", despawn, 45000); /// 45 second
-	addPendingTask("despawn", despawn, 300000);
 }
 
 bool CreatureImplementation::hasOrganics() {
@@ -351,14 +341,20 @@ bool CreatureImplementation::isVicious() {
 }
 
 bool CreatureImplementation::canMilkMe(CreatureObject* player) {
+	if (player == nullptr)
+		return false;
 
 	if (!hasMilk() || milkState != CreatureManager::NOTMILKED  || _this.getReferenceUnsafeStaticCast()->isInCombat() || _this.getReferenceUnsafeStaticCast()->isDead() || isPet())
 		return false;
 
-	if(!player->isInRange(_this.getReferenceUnsafeStaticCast(), 5.0f) || player->isInCombat() || player->isDead() || player->isIncapacitated() || !(player->hasState(CreatureState::MASKSCENT)))
+	if(!player->isInRange(_this.getReferenceUnsafeStaticCast(), 7.0f) || player->isInCombat() || player->isDead() || player->isIncapacitated() || !(player->hasState(CreatureState::MASKSCENT)))
 		return false;
 
 	return true;
+}
+
+bool CreatureImplementation::hasBeenMilked() const {
+	return milkState == CreatureManager::ALREADYMILKED;
 }
 
 bool CreatureImplementation::hasSkillToSampleMe(CreatureObject* player) {
@@ -430,6 +426,8 @@ void CreatureImplementation::setPetLevel(int newLevel) {
 		return;
 	}
 
+	Creature* thisCreature = _this.getReferenceUnsafeStaticCast();
+
 	clearBuffs(false, false);
 
 	int baseLevel = getTemplateLevel();
@@ -437,22 +435,27 @@ void CreatureImplementation::setPetLevel(int newLevel) {
 	float minDmg = calculateAttackMinDamage(baseLevel);
 	float maxDmg = calculateAttackMaxDamage(baseLevel);
 
-	Reference<WeaponObject*> defaultWeapon = asAiAgent()->getDefaultWeapon();
-
 	float ratio = ((float)newLevel) / (float)baseLevel;
 	minDmg *= ratio;
 	maxDmg *= ratio;
 
-	if (primaryWeapon != nullptr && primaryWeapon != defaultWeapon) {
-		float mod = 1.f - 0.1f*float(primaryWeapon->getArmorPiercing());
+	ManagedReference<WeaponObject*> defaultWeap = getDefaultWeapon();
+	ManagedReference<WeaponObject*> primaryWeap = getPrimaryWeapon();
 
-		primaryWeapon->setMinDamage(minDmg * mod);
-		primaryWeapon->setMaxDamage(maxDmg * mod);
+	if (primaryWeap != nullptr && primaryWeap != defaultWeap) {
+		Locker primLock(primaryWeap, thisCreature);
+
+		float mod = 1.f - 0.1f*float(primaryWeap->getArmorPiercing());
+
+		primaryWeap->setMinDamage(minDmg * mod);
+		primaryWeap->setMaxDamage(maxDmg * mod);
 	}
 
-	if (defaultWeapon != nullptr) {
-		defaultWeapon->setMinDamage(minDmg);
-		defaultWeapon->setMaxDamage(maxDmg);
+	if (defaultWeap != nullptr) {
+		Locker defLock(defaultWeap, thisCreature);
+
+		defaultWeap->setMinDamage(minDmg);
+		defaultWeap->setMaxDamage(maxDmg);
 	}
 
 	int ham = 0;

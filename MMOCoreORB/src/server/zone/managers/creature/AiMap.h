@@ -8,6 +8,7 @@
 #ifndef AIMAP_H_
 #define AIMAP_H_
 
+#include "server/ServerCore.h"
 #include "system/util/VectorMap.h"
 
 #include "server/zone/objects/creature/ai/bt/Behavior.h"
@@ -85,11 +86,11 @@ public:
 	VectorMap<uint32, VectorMap<BehaviorTreeSlot, Reference<Behavior*> > > bitmaskMap;
 	VectorMap<uint64, VectorMap<BehaviorTreeSlot, Reference<Behavior*> > > customMap;
 
-	AtomicInteger activeMoveEvents;
-	AtomicInteger scheduledMoveEvents;
-	AtomicInteger moveEventsWithFollowObject;
-	AtomicInteger moveEventsRetreating;
-
+	AtomicInteger countExceptions;
+	AtomicInteger activeBehaviorEvents;
+	AtomicInteger scheduledBehaviorEvents;
+	AtomicInteger behaviorsWithFollowObject;
+	AtomicInteger behaviorsRetreating;
 	AtomicInteger activeRecoveryEvents;
 
 	Mutex guard;
@@ -165,6 +166,11 @@ public:
 		lua->setGlobalInt("PATHING_HOME",				AiAgent::PATHING_HOME					);
 		lua->setGlobalInt("FOLLOW_FORMATION",			AiAgent::FOLLOW_FORMATION				);
 		lua->setGlobalInt("MOVING_TO_HEAL",				AiAgent::MOVING_TO_HEAL					);
+		lua->setGlobalInt("NOTIFY_ALLY",				AiAgent::NOTIFY_ALLY					);
+		lua->setGlobalInt("CRACKDOWN_SCANNING",			AiAgent::CRACKDOWN_SCANNING				);
+		lua->setGlobalInt("HARVESTING",					AiAgent::HARVESTING						);
+		lua->setGlobalInt("RESTING",					AiAgent::RESTING						);
+		lua->setGlobalInt("CONVERSING",					AiAgent::CONVERSING						);
 
 		lua->setGlobalInt("UPRIGHT",					CreaturePosture::UPRIGHT				);
 		lua->setGlobalInt("CROUCHED",					CreaturePosture::CROUCHED				);
@@ -245,6 +251,8 @@ public:
 		lua->setGlobalInt("STATIC",						CreatureFlag::STATIC					);
 		lua->setGlobalInt("STATIONARY",					CreatureFlag::STATIONARY				);
 		lua->setGlobalInt("NOAIAGGRO",					CreatureFlag::NOAIAGGRO					);
+		lua->setGlobalInt("SQUAD",						CreatureFlag::SQUAD						);
+		lua->setGlobalInt("EVENTCONTROL",				CreatureFlag::EVENTCONTROL				);
 		lua->setGlobalInt("TEST",						CreatureFlag::TEST						);
 
 		lua->setGlobalInt("CARNIVORE",					CreatureFlag::CARNIVORE					);
@@ -321,8 +329,47 @@ public:
 		return factory.create(name, id, args);
 	}
 
+	const JSONSerializationType getStatsAsJSON() const {
+		JSONSerializationType json;
+
+		json["activeBehaviorEvents"] = activeBehaviorEvents.get();
+		json["activeRecoveryEvents"] = activeRecoveryEvents.get();
+		json["countExceptions"] = countExceptions.get();
+		json["behaviorsRetreating"] = behaviorsRetreating.get();
+		json["behaviorsWithFollowObject"] = behaviorsWithFollowObject.get();
+		json["scheduledMoveEvents"] = scheduledBehaviorEvents.get();
+
+		auto server = ServerCore::getZoneServer();
+
+		if (server != nullptr) {
+			int totalSpawned = 0;
+
+			for (int i = 0; i < server->getZoneCount(); ++i) {
+				Zone* zone = server->getZone(i);
+
+				if (zone == nullptr)
+					continue;
+
+				int num = zone->getSpawnedAiAgents();
+
+				if (num <= 0)
+					continue;
+
+				String ucFirstZoneName = zone->getZoneName();
+				ucFirstZoneName[0] = toupper(ucFirstZoneName[0]);
+				json["countAiAgents" + ucFirstZoneName] = num;
+
+				totalSpawned += num;
+			}
+
+			json["countAiAgentsTotal"] = totalSpawned;
+		}
+
+		return json;
+	}
+
 private:
-	static const bool DEBUG_MODE = true;
+	static const bool DEBUG_MODE = false;
 	BehaviorFactory factory;
 
 	void registerBehaviors() {
@@ -355,6 +402,7 @@ private:
 		_REGISTERLEAF(CheckProspectInRange);
 		_REGISTERLEAF(CheckFollowAggression);
 		_REGISTERLEAF(CheckProspectAggression);
+		_REGISTERLEAF(CheckIsCamouflaged);
 		_REGISTERLEAF(CheckFollowPosture);
 		_REGISTERLEAF(CheckFollowInWeaponRange);
 		_REGISTERLEAF(CheckFollowClosestIdealRange);
@@ -397,6 +445,13 @@ private:
 		_REGISTERLEAF(CheckCallForHelp);
 		_REGISTERLEAF(CheckIsHarvester);
 		_REGISTERLEAF(CheckHasHarvestTargets);
+		_REGISTERLEAF(CheckShouldRest);
+		_REGISTERLEAF(CheckStopResting);
+		_REGISTERLEAF(CheckQueueSize);
+		_REGISTERLEAF(CheckIsEscort);
+		_REGISTERLEAF(CheckHasRangedWeapon);
+		_REGISTERLEAF(CheckHasMeleeWeapon);
+		_REGISTERLEAF(CheckIsSwimming);
 		// action behaviors
 		_REGISTERLEAF(Dummy);
 		_REGISTERLEAF(GeneratePatrol);
@@ -420,7 +475,6 @@ private:
 		_REGISTERLEAF(Evade);
 		_REGISTERLEAF(FindNextPosition);
 		_REGISTERLEAF(Leash);
-		_REGISTERLEAF(CompleteMove);
 		_REGISTERLEAF(Wait);
 		_REGISTERLEAF(SetAlert);
 		_REGISTERLEAF(KillProspect);
@@ -436,6 +490,8 @@ private:
 		_REGISTERLEAF(SendChatGreeting);
 		_REGISTERLEAF(CallForHelp);
 		_REGISTERLEAF(DroidHarvest);
+		_REGISTERLEAF(Rest);
+		_REGISTERLEAF(StopResting);
 	}
 
 	void putBitmask(Lua* lua, String key) {

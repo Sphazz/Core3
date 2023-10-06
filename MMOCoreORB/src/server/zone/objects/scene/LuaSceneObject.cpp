@@ -13,6 +13,7 @@
 #include "server/zone/Zone.h"
 #include "server/zone/managers/director/ScreenPlayTask.h"
 #include "engine/lua/LuaPanicException.h"
+#include "server/zone/objects/tangible/Container.h"
 
 const char LuaSceneObject::className[] = "LuaSceneObject";
 
@@ -78,11 +79,14 @@ Luna<LuaSceneObject>::RegType LuaSceneObject::Register[] = {
 		{ "setContainerDefaultDenyPermission", &LuaSceneObject::setContainerDefaultDenyPermission },
 		{ "clearContainerDefaultDenyPermission", &LuaSceneObject::clearContainerDefaultDenyPermission },
 		{ "setContainerOwnerID", &LuaSceneObject::setContainerOwnerID },
+		{ "setContainerLockedStatus", &LuaSceneObject::setContainerLockedStatus },
 		{ "setObjectName", &LuaSceneObject::setObjectName },
+		{ "setRadius", &LuaSceneObject::setRadius },
 		{ "isASubChildOf", &LuaSceneObject::isASubChildOf },
 		{ "isOwned", &LuaSceneObject::isOwned },
 		{ "playEffect", &LuaSceneObject::playEffect },
 		{ "addPendingTask", &LuaSceneObject::addPendingTask },
+		{ "hasPendingTask", &LuaSceneObject::hasPendingTask },
 		{ "cancelPendingTask", &LuaSceneObject::cancelPendingTask },
 		{ "getChildObject", &LuaSceneObject::getChildObject },
 		{ "getContainerOwnerID", &LuaSceneObject::getContainerOwnerID },
@@ -722,6 +726,31 @@ int LuaSceneObject::setContainerOwnerID(lua_State* L) {
 	return 0;
 }
 
+int LuaSceneObject::setContainerLockedStatus(lua_State* L) {
+	int numberOfArguments = lua_gettop(L) - 1;
+
+	if (numberOfArguments != 1) {
+		realObject->error() << "Improper number of arguments in setContainerLockedStatus in LuaSceneObject.";
+		return 0;
+	}
+
+	bool status = lua_toboolean(L, -1);
+
+	if (!realObject->isContainerObject())
+		return 0;
+
+	ManagedReference<Container*> container = realObject.castTo<Container*>();
+
+	if (container == nullptr)
+		return 0;
+
+	Locker locker(container);
+
+	container->setLockedStatus(status);
+
+	return 0;
+}
+
 int LuaSceneObject::setObjectName(lua_State* L) {
 	String file = lua_tostring(L, -3);
 	String key = lua_tostring(L, -2);
@@ -732,6 +761,22 @@ int LuaSceneObject::setObjectName(lua_State* L) {
 	realObject->setObjectName(stringid, notifyClient);
 
 	return 0;
+}
+
+int LuaSceneObject::setRadius(lua_State* L) {
+	float radius = lua_tonumber(L, -1);
+
+	if (radius < 0.5f || radius > ZoneServer::CLOSEOBJECTRANGE * 4.0f) {
+		realObject->error() << __FUNCTION__ << "() invalid radius of " << radius;
+		lua_pushnil(L);
+		return 0;
+	}
+
+	realObject->setRadius(radius);
+
+	lua_pushboolean(L, true);
+
+	return 1;
 }
 
 int LuaSceneObject::isASubChildOf(lua_State* L) {
@@ -761,6 +806,18 @@ int LuaSceneObject::addPendingTask(lua_State* L) {
 
 	return 0;
 }
+
+int LuaSceneObject::hasPendingTask(lua_State* L) {
+	String play = lua_tostring(L, -2);
+	String key = lua_tostring(L, -1);
+
+	String name = play + ":" + key;
+
+	lua_pushboolean(L, realObject->containsPendingTask(name));
+
+	return 1;
+}
+
 
 int LuaSceneObject::cancelPendingTask(lua_State* L) {
 	String play = lua_tostring(L, -2);

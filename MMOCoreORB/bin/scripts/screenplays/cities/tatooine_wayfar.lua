@@ -20,7 +20,7 @@ TatooineWayfarScreenPlay = CityScreenPlay:new {
 	},
 
 	combatPatrol = {"jabba_enforcer"},
-	patrolNpcs = {"commoner_fat_patrol", "commoner_old_patrol", "commoner_tatooine_patrol", "commoner_technician", "explorer", "gambler", "scientist_patrol"},
+	patrolNpcs = {"commoner_fat_patrol", "commoner_old_patrol", "commoner_tatooine_patrol", "commoner_technician_patrol", "explorer_patrol", "gambler_patrol", "scientist_patrol"},
 
 	patrolMobiles = {
 		--{patrolPoints, template, x, z, y, direction, cell, mood, combatPatrol},
@@ -51,10 +51,10 @@ TatooineWayfarScreenPlay = CityScreenPlay:new {
 		r5_1 = {{-5105, 75, -6486, 0, false}, {-5104, 75, -6500, 0, true}, {-5085, 75, -6501, 0, false}, {-5104, 75, -6500, 0, false}},
 		r5_2 = {{-5126, 75, -6491, 0, false}, {-5125, 75, -6497, 0, true}, {-5142, 75, -6498, 0, false}, {-5125, 75, -6497, 0, false}},
 
-		npc_1 = {{-5128, 75, -6542, 0, true}, {-5140, 75, -6548, 0, true}, {-5123, 75, -6546, 0, true}, {-6115, 75, -6537, 0, true}, {-5146, 75, -6540, 0, true}},
+		npc_1 = {{-5128, 75, -6542, 0, true}, {-5140, 75, -6548, 0, true}, {-5123, 75, -6546, 0, true}, {-5115, 75, -6537, 0, true}, {-5146, 75, -6540, 0, true}},
 		npc_2 = {{-5120, 75, -6594, 0, true}, {-5129, 75, -6609, 0, true}, {-5147, 75, -6614, 0, true}, {-5126, 75, -6606, 0, true}},
 		npc_3 = {{-5176, 75, -6611, 0, true}, {-5156, 75, -6603, 0, true}, {-5195, 75, -6607, 0, true}, {-5176, 75, -6619, 0, true}},
-		npc_4 = {{-5277, 75, -6558, 0, true}, {-5273, 75, -6775, 0, true}, {-5281, 75, -6547, 0, true}, {-5285, 75, -6565, 0, true}},
+		npc_4 = {{-5277, 75, -6558, 0, true}, {-5273, 75, -6575, 0, true}, {-5281, 75, -6547, 0, true}, {-5285, 75, -6565, 0, true}},
 		npc_5 = {{-5113, 75, -6550, 0, false}, {-5109, 75, -6579, 0, true}, {-5080, 75, -6579, 0, true}, {-5109, 75, -6579, 0, true}},
 		npc_6 = {{-5115, 75, -6548, 0, true}, {-5113, 75, -6598, 0, true}},
 		npc_7 = {{-5050, 75, -6570, 0, false}, {-5074, 75, -6545, 0, false}, {-5085, 75, -6535, 0, false}, {-5088, 75, -6509, 0, false}},
@@ -78,7 +78,7 @@ TatooineWayfarScreenPlay = CityScreenPlay:new {
 		{"info_broker",60,4.7,1.0,4.6,-148,1499418, "sad"},
 		{"entertainer",60,6.82411,0.40827,-8.7422,0,1499419, "conversation"},
 		{"brawler",300,6.82411,0.408269,-7.6422,180,1499419, "angry"},
-		{"commoner_technician",60,5.72411,0.408269,-7.6422,135.001,1499419, "conversation"},
+		{"commoner_technician",300,5.72411,0.408269,-7.6422,135.001,1499419, "conversation"},
 		{"trainer_medic",0,-8.4035,1.00421,8.19643,110,1499420, ""},
 		{"brawler",300,-7.85116,-3.96617,6.43429,272.53,1499424, ""},
 		{"devaronian_male",60,-2.4,0.4,-10.1,176,1499419, "neutral"},
@@ -92,13 +92,12 @@ TatooineWayfarScreenPlay = CityScreenPlay:new {
 		{"farmer_rancher",60,11.9085,0.991375,0.149539,180.01,1134533, "conversation"},
 		{"businessman",60,-20.9216,-3.99571,2.67462,119.091,1718359, ""},
 		{"chiss_female",300,14.8335,-3.99038,5.61296,180.016,1718360, "conversation"},
-		{"mercenary",60,14.8335,-3.99038,4.51296,0,1718360, "npc_accusing"},
+		{"mercenary",300,14.8335,-3.99038,4.51296,0,1718360, "npc_accusing"},
 
 		--Cantina
 		{"artisan",60,34.4931,0.104999,-6.47601,180,1134559, "conversation"},
 		{"bounty_hunter",300,34.4931,0.104999,-7.576,0,1134559, "sad"},
 		{"artisan",60,-3.85346,-0.894991,6.73775,0,1134560, "conversation"},
-		{"bartender",60,-11.0018,-0.894992,1.78678,213.433,1134560, ""},
 		{"businessman",60,4.86041,-0.894992,6.38401,249.175,1134560, ""},
 		{"noble",60,-5.69909,-0.894992,-10.4035,79.4873,1134560, ""},
 		{"osweri_hepa",60,11.3838,-0.894992,-2.63465,180.006,1134560, "conversation"},

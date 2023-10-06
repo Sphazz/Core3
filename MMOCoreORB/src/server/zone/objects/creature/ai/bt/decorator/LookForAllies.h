@@ -75,12 +75,13 @@ public:
 	}
 
 	bool isInvalidTarget(CreatureObject* target, AiAgent* agent) const {
-		if (target == nullptr || target->isDead() || target == agent || !target->isAiAgent() || target->isInCombat())
+		if (target == nullptr || target->isDead() || target == agent || !target->isAiAgent() || !(target->getPvpStatusBitmask() & CreatureFlag::ATTACKABLE) ||
+			!(target->getOptionsBitmask() & OptionBitmask::AIENABLED) || target->isInCombat())
 			return true;
 
 		AiAgent* tarAgent = target->asAiAgent();
 
-		if (tarAgent == nullptr)
+		if (tarAgent == nullptr || tarAgent->isFleeing() || tarAgent->getMovementState() == AiAgent::LEASHING)
 			return true;
 
 		uint32 socialGroup = agent->getSocialGroup().toLowerCase().hashCode();
@@ -95,7 +96,10 @@ public:
 		uint64 agentParentID = agentParent != nullptr ? agentParent->getObjectID() : 0;
 		uint64 targetParentID = targetParent != nullptr ? targetParent->getObjectID() : 0;
 
-		if (agentParentID != targetParentID && !CollisionManager::checkLineOfSight(agent, target))
+		if (agentParentID == targetParentID && (agent->getPosition().squaredDistanceTo(target->getPosition()) > 50 * 50))
+			return true;
+
+		if (!CollisionManager::checkLineOfSight(agent, target))
 			return true;
 
 		return false;

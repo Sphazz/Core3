@@ -9,6 +9,8 @@
 #define PLAYERMANAGERCOMMAND_H_
 
 #include "engine/engine.h"
+#include "server/zone/ZoneServer.h"
+#include "server/chat/ChatManager.h"
 #include "server/zone/managers/player/PlayerManager.h"
 
 #include "server/zone/managers/collision/PathFinderManager.h"
@@ -70,21 +72,26 @@ public:
 			ChatManager* chatManager = player->getZoneServer()->getChatManager();
 			chatManager->sendMail("System", "Dump COV" , resp, player->getFirstName());
 			player->sendSystemMessage(resp);
+#ifdef NDEBUG
+			Logger::console.info(true) << "\033[32;40m" << __FILE__ << ":" << __LINE__ << " dumpcov results:\n" << resp << "\033[0m";
+#endif
 			return 0;
 		} else if (command == "bench") {
 			Reference<CreatureObject*> creo = player;
-			int iterations = 100;
+			int iterations = 40;
+
 			if (tokenizer.hasMoreTokens())
 				iterations = tokenizer.getIntToken();
 
-			for (int i=0; i<iterations; i++) {
-				Core::getTaskManager()->scheduleTask([creo]{
+			for (int i = 0; i < iterations; i++) {
+				Core::getTaskManager()->scheduleTask([creo] {
 					Locker locker(creo);
+
 					creo->executeObjectControllerAction(STRING_HASHCODE("createcreature"), 0, "gorax");
 					creo->executeObjectControllerAction(STRING_HASHCODE("createcreature"), 0, "nightsister_elder");
 					creo->executeObjectControllerAction(STRING_HASHCODE("createcreature"), 0, "death_watch_wraith");
-
-				}, "spawnCreatureBenchmark", i*100);
+					creo->executeObjectControllerAction(STRING_HASHCODE("createcreature"), 0, "dark_jedi_knight");
+				}, "spawnCreatureBenchmark", i * 200);
 			}
 		} else if (command == "listjedi") {
 			player->sendSystemMessage("Please wait. This may take a while.");
@@ -181,8 +188,17 @@ public:
 
 		auto ourPosition = targetObject->getWorldPosition();
 
+		VectorMap<float, SceneObject*> sortedObjects;
+		sortedObjects.setAllowDuplicateInsertPlan();
+
 		for (int i = 0; i < closeObjects.size(); ++i) {
 			auto obj = static_cast<SceneObject*>(closeObjects.getUnsafe(i));
+			auto distance = ourPosition.distanceTo(obj->getWorldPosition());
+			sortedObjects.put(distance, obj);
+		}
+
+		for (int i = 0; i < sortedObjects.size(); ++i) {
+			auto obj = sortedObjects.get(i);
 
 			if (obj == nullptr) {
 				resp << i << ": " << "nullptr Object" << endl;

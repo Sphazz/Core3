@@ -4,6 +4,7 @@
 #include "server/zone/objects/creature/ai/AiAgent.h"
 #include "templates/params/OptionBitmask.h"
 #include "server/zone/objects/creature/ai/bt/decorator/Decorator.h"
+#include "server/zone/managers/collision/CollisionManager.h"
 
 #include <cassert>
 
@@ -64,14 +65,14 @@ public:
 	}
 
 	bool isInvalidTarget(CreatureObject* target, AiAgent* agent) const {
-		if (target == nullptr || target->isDead() || target->isFeigningDeath() || target->isInvulnerable() || target->isInvisible())
+		if (target == nullptr || target->isDead() || target->isFeigningDeath() || target->isInvisible())
 			return true;
 
-		SceneObject* agentRoot = agent->getRootParent();
-		SceneObject* targetRoot = target->getRootParent();
+		SceneObject* agentParent = agent->getParent().get();
+		SceneObject* targetParent = target->getParent().get();
 
-		uint64 agentParentID = agentRoot != nullptr && agentRoot->isBuildingObject() ? agentRoot->getObjectID() : 0;
-		uint64 targetParentID = targetRoot != nullptr && targetRoot->isBuildingObject() ? targetRoot->getObjectID() : 0;
+		uint64 agentParentID = agentParent != nullptr ? agentParent->getObjectID() : 0;
+		uint64 targetParentID = targetParent != nullptr ? targetParent->getObjectID() : 0;
 
 		if (agentParentID != targetParentID && !CollisionManager::checkLineOfSight(agent, target))
 			return true;

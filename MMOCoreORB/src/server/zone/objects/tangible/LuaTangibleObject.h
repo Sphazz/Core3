@@ -32,7 +32,10 @@ namespace tangible {
 		int setPvpStatusBitmask(lua_State *L);
 		int setPvpStatusBit(lua_State *L);
 		int getPvpStatusBitmask(lua_State *L);
+		int broadcastPvpStatusBitmask(lua_State *L);
+		int sendPvpStatusTo(lua_State *L);
 		int isChangingFactionStatus(lua_State* L);
+		int getFactionStatus(lua_State* L);
 		int setFutureFactionStatus(lua_State* L);
 		int isOnLeave(lua_State* L);
 		int isOvert(lua_State* L);
@@ -61,6 +64,7 @@ namespace tangible {
 		int isBroken(lua_State* L);
 		int isSliced(lua_State* L);
 		int isNoTrade(lua_State* L);
+		int getMainDefender(lua_State* L);
 
 	protected:
 		TangibleObject* realObject;

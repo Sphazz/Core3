@@ -39,7 +39,7 @@ TatooineMosEisleyScreenPlay = CityScreenPlay:new {
 		{"mos_eisley_police_lieutenant", "mos_eisley_police_lieutenant_rebel", 3243.7,5,-4533.1,137,0, "npc_imperial", "calm", true},
 	},
 
-	patrolNpcs = {"commoner_fat_patrol", "commoner_old_patrol", "commoner_tatooine_patrol", "commoner_technician", "explorer", "gambler", "scientist_patrol"},
+	patrolNpcs = {"commoner_fat_patrol", "commoner_old_patrol", "commoner_tatooine_patrol", "commoner_technician_patrol", "explorer_patrol", "gambler_patrol", "scientist_patrol"},
 
 	patrolMobiles = {
 		--{patrolPoints, template, x, z, y, direction, cell, mood, combatPatrol},
@@ -106,13 +106,17 @@ TatooineMosEisleyScreenPlay = CityScreenPlay:new {
 		{"ecik",60,1.1,0.639421,66.3,101.522,1106372, "neutral"},
 		{"trainer_shipwright",60,-3.2,0.6,67.6,160,1106372, "neutral"},
 
+		-- Front of Starport
+		{"vincie_kalhoon", 0, 3525.6, 5.0, -4799.7, 123, 0, ""},
+		{"mooch_davoney", 0, 3526.8, 5.0, -4799.0, 123, 0, ""},
+		{"guillo_parootchie", 0, 3528.1, 5.0, -4799.4, 172, 0, ""},
+
 		--Cantina
 		{"commoner_old",60,36,0.1,0.7,310,1082876, "npc_sitting_chair"},
 		{"commoner_tatooine",60,29.6,0.1,-7.4,71,1082876, "npc_sitting_chair"},
 		{"commoner_tatooine",60,30.9,0.1,-8.8,10,1082876, "npc_sitting_chair"},
 		{"commoner_tatooine",60,29.4,0.1,-6.1,107,1082876, "npc_sitting_chair"},
 		{"commoner_tatooine",60,35.7,0.1,3.1,180,1082876, "npc_sitting_table"},
-		{"bartender",60,-11.5,-0.9,2,230,1082877, "conversation"},
 		{"businessman",60,10.65,-0.894992,1.91,330,1082877, "npc_standing_drinking"},
 		{"businessman",60,-4.11,-0.894992,5.4,26.8951,1082877, "happy"},
 		{"chadra_fan_female",60,10.43,-0.894992,-1.47,123.102,1082877, "worried"},
@@ -150,7 +154,6 @@ TatooineMosEisleyScreenPlay = CityScreenPlay:new {
 		{"patron_quarren",60,17,-0.9,6.8,226,1082877, "npc_sitting_chair"},
 		{"stormtrooper",400,2.84,-0.894992,-6.3,16.0005,1082877, "npc_imperial"},
 		{"stormtrooper_squad_leader",400,3.62,-0.894992,-6.78,360.011,1082877, "npc_accusing"},
-		{"wuher",60,-14,-0.9,0,90,1082877, "worried"},
 		{"doikk_nats",60,2.32,-0.894992,-16.47,44.0013,1082880, "themepark_music_3"},
 		{"figrin_dan",60,3.69,-0.894992,-14.4,50.0015,1082880, "themepark_music_3"},
 		{"nalan_cheel",60,0.54,-0.894992,-17.13,38.0011,1082880, "themepark_music_1"},
@@ -221,7 +224,7 @@ TatooineMosEisleyScreenPlay = CityScreenPlay:new {
 		{"entertainer",60,0,0.5,-5.8,175,1187999, "entertained"},
 		{"entertainer",60,-2.3,0.5,-6.4,-133,1187999, "entertained"},
 		{"entertainer",60,0,0.5,-2.5,160,1187999, "npc_sitting_ground"},
-		{"commoner_technician",60,-22.4,1.0,-9.0,-106,1188001, "sad"},
+		{"commoner_technician",300,-22.4,1.0,-9.0,-106,1188001, "sad"},
 
 		--large house west B
 		{"chiss_male",60,-2.3,1.0,6.7,90,1187871, "npc_sitting_chair"},
@@ -291,7 +294,7 @@ TatooineMosEisleyScreenPlay = CityScreenPlay:new {
 		{"rodian_clan_captain", 300, 5.07127, 2.6, 6.65958, 0, 1105851, "conversation"},
 		{"noble",60,26.93,2.12878,58.19,222.007,1105852, ""},
 		{"noble",60,19.26,2.12847,56.13,266.008,1105853, ""},
-		{"brawler",60,17.0318,2.12878,75.3601,0,1105853, "conversation"},
+		{"brawler",300,17.0318,2.12878,75.3601,0,1105853, "conversation"},
 		{"dede_chesmi",60,26.7839,2.12847,70.8524,180.013,1105853, "conversation"},
 		{"mebi_axane",60,26.7839,2.12876,69.7524,360.011,1105853, "conversation"},
 		{"medic",300,17.0318,2.12878,76.3601,179.996,1105853, "conversation"},
@@ -304,7 +307,7 @@ TatooineMosEisleyScreenPlay = CityScreenPlay:new {
 		{"criminal",300,3364.26,5,-4854.56,0.24067,0, ""},
 		{"criminal",300,3352.2,5.0,-4821.5,90,0, "npc_sitting_chair"},
 		{"criminal",300,3401.83,5,-4868.72,295.372,0, ""},
-		{"explorer",60,3421,5,-4953.33,180.005,0, "conversation"},
+		{"explorer",300,3421,5,-4953.33,180.005,0, "conversation"},
 		{"informant_npc_lvl_1",0,3447,5,-4850,135,0, ""},
 		{"informant_npc_lvl_1",0,3253,5,-4923,180,0, ""},
 		{"informant_npc_lvl_1",0,3488,5,-4782,135,0, ""},
@@ -433,6 +436,7 @@ function TatooineMosEisleyScreenPlay:spawnMobiles()
 	end
 
 	--Creatures
+	--[[
 	spawnMobile(self.planet, "minor_worrt",300,3863.8,5,-4809.5,170,0)
 	spawnMobile(self.planet, "minor_worrt",300,3857.8,5,-4814.4,127,0)
 	spawnMobile(self.planet, "minor_worrt",300,3856.5,5,-4826.1,45,0)
@@ -483,4 +487,5 @@ function TatooineMosEisleyScreenPlay:spawnMobiles()
 	spawnMobile(self.planet, "worrt",300,3585.7,5,-4530.5,-81,0)
 	spawnMobile(self.planet, "worrt",300,3573.9,5,-4529.6,108,0)
 	spawnMobile(self.planet, "worrt",300,3580.5,5,-4544.8,34,0)
+	]]
 end

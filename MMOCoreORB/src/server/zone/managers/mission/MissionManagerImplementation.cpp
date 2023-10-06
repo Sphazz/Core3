@@ -19,7 +19,7 @@
 #include "server/zone/objects/mission/HuntingMissionObjective.h"
 #include "server/zone/objects/mission/ReconMissionObjective.h"
 #include "server/zone/objects/mission/BountyMissionObjective.h"
-#include "server/zone/objects/area/SpawnArea.h"
+#include "server/zone/objects/region/SpawnArea.h"
 #include "server/zone/managers/resource/ResourceManager.h"
 #include "templates/manager/TemplateManager.h"
 #include "server/zone/managers/planet/PlanetManager.h"
@@ -34,6 +34,7 @@
 #include "server/zone/managers/stringid/StringIdManager.h"
 #include "server/zone/objects/player/FactionStatus.h"
 #include "server/zone/managers/visibility/VisibilityManager.h"
+#include "server/zone/objects/building/BuildingObject.h"
 
 void MissionManagerImplementation::loadLuaSettings() {
 	try {
@@ -825,7 +826,12 @@ void MissionManagerImplementation::randomizeGenericDestroyMission(CreatureObject
 				SortedVector<ManagedReference<ActiveArea* > > activeAreas;
 				zone->getInRangeActiveAreas(startPos.getX(), startPos.getY(), &activeAreas, true);
 				for (int i = 0; i < activeAreas.size(); ++i) {
-					if (activeAreas.get(i)->isMunicipalZone()) {
+					ActiveArea* area = activeAreas.get(i);
+
+					if (area == nullptr)
+						continue;
+
+					if (area->isCityRegion()) {
 						foundPosition = false;
 					}
 				}
@@ -1035,14 +1041,39 @@ void MissionManagerImplementation::randomizeGenericBountyMission(CreatureObject*
 			ManagedReference<CreatureObject*> creature = server->getObject(target->getTargetPlayerID()).castTo<CreatureObject*>();
 			String name = "";
 
-			if (creature != nullptr) {
-				name = creature->getFirstName() + " " + creature->getLastName();
-				name = name.trim();
+			if (creature != nullptr && ConfigManager::instance()->getBool("Core3.MissionManager.AnonymousBountyTerminals", false)) {
+				if (creature->getFaction() == Factions::FACTIONIMPERIAL)
+					name = "Imperial Jedi";
+				else if (creature->getFaction() == Factions::FACTIONREBEL)
+					name = "Rebel Jedi";
+				else
+					name = "Neutral Jedi";
+
+				ManagedReference<PlayerObject*> ghost = creature->getPlayerObject();
+
+				int rewardCreds = 0;
+				if (ghost->getJediState() >= 4)
+					rewardCreds = 50000;
+				else
+					rewardCreds = 25000;
+
+				mission->setRewardCredits(rewardCreds);
+				int totalCreds = getRealBountyReward(creature, target);
+				int bonusCreds = totalCreds - rewardCreds;
+
+				if (bonusCreds > 0)
+					mission->setBonusCredits(bonusCreds);
+			} else {
+				if (creature != nullptr) {
+					name = creature->getFirstName() + " " + creature->getLastName();
+					name = name.trim();
+				}
+
+				mission->setRewardCredits(getRealBountyReward(creature, target));
 			}
 
 			mission->setMissionTargetName(name);
 			mission->setMissionDifficulty(75);
-			mission->setRewardCredits(getRealBountyReward(creature, target));
 
 			// Set the Title, Creator, and Description of the mission.
 
@@ -1218,8 +1249,7 @@ bool MissionManagerImplementation::randomGenericDeliverMission(CreatureObject* p
 	//Find a spawn point in current city.
 	float minDistance = 10.0f;
 	float maxDistance = 300.0f;
-	auto startNpc = missionNpcSpawnMap.getRandomNpcSpawnPoint(planetName.hashCode(), startPosition,
-			getDeliverMissionSpawnType(faction), minDistance, maxDistance);
+	auto startNpc = missionNpcSpawnMap.getRandomNpcSpawnPoint(planetName.hashCode(), startPosition, getDeliverMissionSpawnType(faction), minDistance, maxDistance);
 
 	if (startNpc == nullptr) {
 		//Couldn't find a suitable spawn point.
@@ -1231,8 +1261,8 @@ bool MissionManagerImplementation::randomGenericDeliverMission(CreatureObject* p
 	if (!inTownMission) {
 		//Find city center of another city and use as position to search for spawn points from.
 		endPosition = missionNpcSpawnMap.getRandomCityCoordinates(planetName.hashCode(), startPosition);
-
 	}
+
 	//Search in all parts of the city for the end spawn.
 	minDistance = 15.0f;
 	maxDistance = 1500.0f;
@@ -1240,8 +1270,7 @@ bool MissionManagerImplementation::randomGenericDeliverMission(CreatureObject* p
 	const NpcSpawnPoint* endNpc = nullptr;
 	int retries = 10;
 	while ((endNpc == nullptr || endNpc == startNpc) && (retries > 0)) {
-		endNpc = missionNpcSpawnMap.getRandomNpcSpawnPoint(planetName.hashCode(), endPosition,
-				getDeliverMissionSpawnType(faction), minDistance, maxDistance);
+		endNpc = missionNpcSpawnMap.getRandomNpcSpawnPoint(planetName.hashCode(), endPosition, getDeliverMissionSpawnType(faction), minDistance, maxDistance);
 		retries--;
 	}
 
@@ -1768,23 +1797,13 @@ LairSpawn* MissionManagerImplementation::getRandomLairSpawn(CreatureObject* play
 
 	} else if (type == MissionTypes::HUNTING) {
 		CreatureManager* creatureManager = zone->getCreatureManager();
-		auto worldAreas = creatureManager->getWorldSpawnAreas();
 
-		ManagedReference<SpawnArea*> spawnArea = nullptr;
+		if (creatureManager != nullptr) {
+			SpawnArea* spawnArea = creatureManager->getWorldSpawnArea();
 
-		if (worldAreas == nullptr || worldAreas->size() == 0) {
-			return nullptr;
+			if (spawnArea != nullptr)
+				availableLairList = spawnArea->getSpawnList();
 		}
-
-		int rand = System::random(worldAreas->size() - 1);
-
-		spawnArea = worldAreas->get(rand);
-
-		if (spawnArea == nullptr) {
-			return nullptr;
-		}
-
-		availableLairList = spawnArea->getSpawnList();
 	}
 
 	if (availableLairList == nullptr || availableLairList->size() == 0) {
@@ -1938,7 +1957,7 @@ void MissionManagerImplementation::removePlayerFromBountyList(uint64 targetId) {
 		const SortedVector<uint64>* bountyHunters = target->getBountyHunters();
 
 		for (int i = 0; i < bountyHunters->size(); i++) {
-			failPlayerBountyMission(bountyHunters->get(i));
+			failPlayerBountyMission(bountyHunters->get(i), targetId);
 		}
 
 		ObjectManager::instance()->destroyObjectFromDatabase(target->_getObjectID());
@@ -1959,11 +1978,13 @@ void MissionManagerImplementation::updatePlayerBountyOnlineStatus(uint64 targetI
 
 	if (playerBountyList.contains(targetId)) {
 		playerBountyList.get(targetId)->setOnline(status);
+#ifdef DEBUG_BH_MISSIONS
 
 		if (status)
 			info("Player jedi is now online: " + String::valueOf(targetId), true);
 		else
 			info("Player jedi is now offline: " + String::valueOf(targetId), true);
+#endif // DEBUG_BH_MISSIONS
 	}
 }
 
@@ -1977,7 +1998,16 @@ void MissionManagerImplementation::removeBountyHunterFromPlayerBounty(uint64 tar
 	Locker listLocker(&playerBountyListMutex);
 
 	if (playerBountyList.contains(targetId)) {
-		playerBountyList.get(targetId)->removeBountyHunter(bountyHunterId);
+		PlayerBounty* playerBounty = playerBountyList.get(targetId);
+
+		playerBounty->removeBountyHunter(bountyHunterId);
+
+		if (ConfigManager::instance()->getBool("Core3.MissionManager.PlayerBountyCooldown", true)) {
+			Time currentTime;
+			uint64 curTime = currentTime.getMiliTime();
+
+			playerBounty->addMissionCooldown(bountyHunterId, curTime);
+		}
 	}
 }
 
@@ -2000,7 +2030,9 @@ bool MissionManagerImplementation::isBountyValidForPlayer(CreatureObject* player
 	if (!bounty->isOnline())
 		return false;
 
-	if (bounty->numberOfActiveMissions() >= 5)
+	int maxBountiesPerJedi = ConfigManager::instance()->getInt("Core3.MissionManager.MaxBountiesPerJedi", 5);
+
+	if (bounty->numberOfActiveMissions() >= maxBountiesPerJedi)
 		return false;
 
 	uint64 targetId = bounty->getTargetPlayerID();
@@ -2041,6 +2073,13 @@ bool MissionManagerImplementation::isBountyValidForPlayer(CreatureObject* player
 	if (!enableSameAccountBountyMissions && targetGhost->getAccountID() == accountId)
 		return false;
 
+	if (!ConfigManager::instance()->getBool("Core3.MissionManager.PrivateStructureJediMissions", true)) {
+		ManagedReference<BuildingObject*> building = cast<BuildingObject*>(creature->getRootParent());
+
+		if (building != nullptr && building->isPrivateStructure())
+			return false;
+	}
+
 	auto hunters = bounty->getBountyHunters();
 
 	for (int j = 0; j < hunters->size(); j++) {
@@ -2051,6 +2090,14 @@ bool MissionManagerImplementation::isBountyValidForPlayer(CreatureObject* player
 
 			if (hunterGhost != nullptr && hunterGhost->getAccountID() == accountId)
 				return false;
+		}
+	}
+
+	if (ConfigManager::instance()->getBool("Core3.MissionManager.PlayerBountyCooldown", true)) {
+		int cooldownTime = ConfigManager::instance()->getInt("Core3.MissionManager.PlayerBountyCooldownTime", 86400000); // 24 hour default
+
+		if (!bounty->canTakeMission(player->getObjectID(), cooldownTime)) {
+			return false;
 		}
 	}
 
@@ -2066,6 +2113,11 @@ void MissionManagerImplementation::completePlayerBounty(uint64 targetId, uint64 
 		Time currentTime;
 
 		uint64 curTime = currentTime.getMiliTime();
+
+		if (ConfigManager::instance()->getBool("Core3.MissionManager.PlayerBountyCooldown", false)) {
+			target->addMissionCooldown(bountyHunter, curTime);
+		}
+
 		target->setLastBountyKill(curTime);
 		uint64 lastDebuff = target->getLastBountyDebuff();
 
@@ -2082,7 +2134,7 @@ void MissionManagerImplementation::completePlayerBounty(uint64 targetId, uint64 
 		for (int i = 0; i < bhSize; i++) {
 			if (activeBountyHunters.get(i) != bountyHunter) {
 				//Fail mission.
-				failPlayerBountyMission(activeBountyHunters.get(i));
+				failPlayerBountyMission(activeBountyHunters.get(i), targetId);
 			} else {
 				ManagedReference<CreatureObject*> creo = server->getObject(activeBountyHunters.get(i)).castTo<CreatureObject*>();
 				auto ghost = creo->getPlayerObject();
@@ -2093,7 +2145,7 @@ void MissionManagerImplementation::completePlayerBounty(uint64 targetId, uint64 
 	}
 }
 
-void MissionManagerImplementation::failPlayerBountyMission(uint64 bountyHunter) {
+void MissionManagerImplementation::failPlayerBountyMission(uint64 bountyHunter, uint64 targetID) {
 	ManagedReference<CreatureObject*> creature = server->getObject(bountyHunter).castTo<CreatureObject*>();
 
 	if (creature != nullptr) {
@@ -2111,8 +2163,20 @@ void MissionManagerImplementation::failPlayerBountyMission(uint64 bountyHunter) 
 					player->sendSystemMessage("@mission/mission_generic:failed");
 
 					auto ghost = player->getPlayerObject();
+
 					if (ghost != nullptr)
 						ghost->schedulePvpTefRemovalTask(false, false, true);
+				}
+
+				if (ConfigManager::instance()->getBool("Core3.MissionManager.PlayerBountyCooldown", true) && targetID > 0) {
+					PlayerBounty* playerBounty = playerBountyList.get(targetID);
+
+					if (playerBounty != nullptr) {
+						Time currentTime;
+						uint64 curTime = currentTime.getMiliTime();
+
+						playerBounty->addMissionCooldown(bountyHunter, curTime);
+					}
 				}
 
 				objective->fail();
@@ -2134,12 +2198,12 @@ Vector<uint64> MissionManagerImplementation::getHuntersHuntingTarget(uint64 targ
 	return values;
 }
 
-void MissionManagerImplementation::allocateMissionNpcs(NpcSpawnPoint* target, NpcSpawnPoint* destination, TerrainManager* terrainManager, CreatureManager* creatureManager) {
+void MissionManagerImplementation::allocateMissionNpcs(NpcSpawnPoint* target, NpcSpawnPoint* destination, Zone* zone, CreatureManager* creatureManager) {
 	//Lock mission spawn points.
 	Locker missionSpawnLocker(&missionNpcSpawnMap);
 
-	target->allocateNpc(terrainManager, creatureManager);
-	destination->allocateNpc(terrainManager, creatureManager);
+	target->allocateNpc(zone, creatureManager);
+	destination->allocateNpc(zone, creatureManager);
 }
 
 void MissionManagerImplementation::freeMissionNpc(AiAgent* npc) {

@@ -300,6 +300,11 @@ void SuiManager::handleCharacterBuilderSelectItem(CreatureObject* player, SuiBox
 						player->sendSystemMessage("Not within combat.");
 					}
 				}
+			} else if (templatePath == "drain_force_bar") {
+				if (ghost->isJedi()) {
+					player->sendSystemMessage("Your Force power has been depleted.");
+					ghost->setForcePower(1, true);
+				}
 			} else if (templatePath == "reset_buffs") {
 				if (!player->isInCombat()) {
 					player->sendSystemMessage("Your buffs have been reset.");
@@ -461,7 +466,7 @@ void SuiManager::handleCharacterBuilderSelectItem(CreatureObject* player, SuiBox
 
 				LootManager* lootManager = zserv->getLootManager();
 				TransactionLog trx(TrxCode::CHARACTERBUILDER, player);
-				if (lootManager->createLoot(trx, inventory, templatePath, 300, true)) {
+				if (lootManager->createLoot(trx, inventory, templatePath, 300, true) > 0) {
 					trx.commit(true);
 				} else {
 					trx.abort() << "createLoot " << templatePath << " failed.";
@@ -477,6 +482,11 @@ void SuiManager::handleCharacterBuilderSelectItem(CreatureObject* player, SuiBox
 			} else if (templatePath == "unlock_jedi_initiate") {
 				bluefrog->grantJediInitiate(player);
 
+			// Bio-Engineer Testing
+			} else if (templatePath == "ju6d14qq") {
+				bluefrog->giveDnaTestingSet(player, templatePath);
+			} else if (templatePath == "d5j7caq6") {
+				bluefrog->giveDnaTestingSet(player, templatePath);
 			} else {
 				if (templatePath.length() > 0) {
 					SkillManager::instance()->awardSkill(templatePath, player, true, true, true);

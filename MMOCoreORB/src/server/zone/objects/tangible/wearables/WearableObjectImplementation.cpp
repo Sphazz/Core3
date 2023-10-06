@@ -12,61 +12,15 @@
 #include "server/zone/objects/draftschematic/DraftSchematic.h"
 #include "server/zone/objects/tangible/attachment/Attachment.h"
 #include "server/zone/managers/skill/SkillModManager.h"
-
-/**
- * Rename for clarity/convenience
- */
-using Mod = VectorMapEntry<String,int>;
-
-/**
- * @inf
- * The ModSortingHelper class inherits from VectorMap<String, int> and is used
- * to provide the correct sorting for a SEA stat mod in a SortedVector.
- * Specifically, it keeps the relative order of same-value mods so that when a
- * mod is applied to a wearable, ties are broke in the order they appear on the
- * SEA.
- * @imp
- * Overwrites the VectorMapEntry<k,v>::compareTo method to get custom sort
- * behavior in sorted containers.
- */
-class ModSortingHelper : public Mod {
-public:
-	ModSortingHelper(): Mod( "", 0) {}
-	ModSortingHelper(String name, int value) : Mod(name, value) {}
-
-	/**
-	 * @inf
-	 * Overwrite the compareTo method of VectorMapEntry in order to provide
-	 * custom sorting logic.
-	 * @imp
-	 * Using the default compare method where equality values return 0 will
-	 * not maintain the relative order of same-value objects being 'put()'
-	 * into a SortedVector. This pastebin (http://pastebin.com/AazeG0Lq)
-	 * shows how inserting 4 equal elements, A,B,C,D, into a SortedVector
-	 * will result in a vector of {A, C, D, B}. This overload results in a
-	 * vector of {A, B, C, D }.
-	 */
-	int compareTo(const Mod& e) const  {
-		// Make copies of this and e to get around getValue not being const
-		if(  Mod(*this).getValue() >= Mod(e).getValue() ) {
-			return 1;
-		} else {
-			return -1;
-		}
-	}
-};
+#include "server/zone/objects/tangible/wearables/ModSortingHelper.h"
 
 void WearableObjectImplementation::initializeTransientMembers() {
 	TangibleObjectImplementation::initializeTransientMembers();
 	setLoggingName("WearableObject");
 }
 
-void WearableObjectImplementation::fillAttributeList(AttributeListMessage* alm,
-		CreatureObject* object) {
+void WearableObjectImplementation::fillAttributeList(AttributeListMessage* alm, CreatureObject* object) {
 	TangibleObjectImplementation::fillAttributeList(alm, object);
-
-	if (socketsLeft() > 0)
-		alm->insertAttribute("sockets", socketsLeft());
 
 	for(int i = 0; i < wearableSkillMods.size(); ++i) {
 		String key = wearableSkillMods.elementAt(i).getKey();
@@ -91,7 +45,7 @@ void WearableObjectImplementation::updateCraftingValues(CraftingValues* values, 
 	 * hitpoints			1000-1000 (Don't Use)
 	 */
 	if (initialUpdate) {
-		if(values->hasProperty("sockets") && values->getCurrentValue("sockets") >= 0)
+		if(values->hasExperimentalAttribute("sockets") && values->getCurrentValue("sockets") >= 0)
 			generateSockets(values);
 	}
 }
@@ -106,53 +60,59 @@ void WearableObjectImplementation::generateSockets(CraftingValues* craftingValue
 
 	if (craftingValues != nullptr) {
 		ManagedReference<ManufactureSchematic*> manuSchematic = craftingValues->getManufactureSchematic();
-		if(manuSchematic != nullptr) {
+
+		if (manuSchematic != nullptr) {
 			ManagedReference<DraftSchematic*> draftSchematic = manuSchematic->getDraftSchematic();
 			ManagedReference<CreatureObject*> player = manuSchematic->getCrafter().get();
 
 			if (player != nullptr && draftSchematic != nullptr) {
 				String assemblySkill = draftSchematic->getAssemblySkill();
-				skill = player->getSkillMod(assemblySkill) * 2.5; // 0 to 250 max
-				luck = System::random(player->getSkillMod("luck")
-						+ player->getSkillMod("force_luck"));
+
+				skill = player->getSkillMod(assemblySkill);
+
+				if (MIN_SOCKET_MOD > skill)
+					return;
+
+				luck = System::random(player->getSkillMod("luck") + player->getSkillMod("force_luck"));
 			}
 		}
 	}
 
-	int random = (System::random(750)) - 250; // -250 to 500
+	skill -= MIN_SOCKET_MOD;
+	int bonusMod = 65 - skill;
 
-	float roll = System::random(skill + luck + random);
+	if (bonusMod <= 0) {
+		bonusMod = 0;
+	} else {
+		bonusMod = System::random(bonusMod);
+	}
 
-	int generatedCount = int(float(MAXSOCKETS * roll) / float(MAXSOCKETS * 100));
+	int skillAdjust = skill + System::random(luck) + bonusMod;
+	int maxMod = 65 + System::random(skill);
+
+	float randomSkill = System::random(skillAdjust) * 10;
+	float roll = randomSkill / (400.f + maxMod);
+
+	float generatedCount = roll * MAXSOCKETS;
 
 	if (generatedCount > MAXSOCKETS)
 		generatedCount = MAXSOCKETS;
-	if (generatedCount < 0)
-		generatedCount = 0;
+	else if (generatedCount > 3 && generatedCount <= 3.75f)
+		generatedCount = floor(generatedCount);
 
-	// TODO: remove this backwards compatibility fix at next wipe. Only usedSocketCount variable should be used.
-	objectCreatedPreUsedSocketCountFix = false;
 	usedSocketCount = 0;
-
-	socketCount = generatedCount;
+	socketCount = (int)generatedCount;
 
 	socketsGenerated = true;
-}
 
-int WearableObjectImplementation::socketsUsed() const {
-	// TODO: remove this backwards compatibility fix at next wipe. Only usedSocketCount variable should be used.
-	if (objectCreatedPreUsedSocketCountFix) {
-		return wearableSkillMods.size() - modsNotInSockets;
-	} else {
-		return usedSocketCount;
-	}
+	return;
 }
 
 void WearableObjectImplementation::applyAttachment(CreatureObject* player, Attachment* attachment) {
 	if (!isASubChildOf(player))
 		return;
 
-	if (socketsLeft() > 0 && wearableSkillMods.size() < 6) {
+	if (getRemainingSockets() > 0 && wearableSkillMods.size() < 6) {
 		Locker locker(player);
 
 		if (isEquipped()) {
@@ -212,7 +172,7 @@ void WearableObjectImplementation::applySkillModsTo(CreatureObject* creature) co
 		if (!SkillModManager::instance()->isWearableModDisabled(name))
 		{
 			creature->addSkillMod(SkillModManager::WEARABLE, name, value, true);
-			creature->updateTerrainNegotiation();
+			creature->updateSpeedAndAccelerationMods();
 		}
 	}
 
@@ -231,7 +191,7 @@ void WearableObjectImplementation::removeSkillModsFrom(CreatureObject* creature)
 		if (!SkillModManager::instance()->isWearableModDisabled(name))
 		{
 			creature->removeSkillMod(SkillModManager::WEARABLE, name, value, true);
-			creature->updateTerrainNegotiation();
+			creature->updateSpeedAndAccelerationMods();
 		}
 	}
 

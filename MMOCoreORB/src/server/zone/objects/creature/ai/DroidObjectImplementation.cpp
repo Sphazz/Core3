@@ -27,7 +27,7 @@ void DroidObjectImplementation::fillAttributeList(AttributeListMessage* msg, Cre
 
 	ManagedReference<ControlDevice*> device = getControlDevice().get();
 
-	if (device != nullptr && device->isASubChildOf(object)) {
+	if (device != nullptr && object != nullptr && device->isASubChildOf(object)) {
 		float percentPower = ((float)power / (float)MAX_POWER) * 100.0;
 		msg->insertAttribute("@obj_attr_n:battery_power", String::valueOf((int)percentPower) + "%");
 
@@ -38,9 +38,11 @@ void DroidObjectImplementation::fillAttributeList(AttributeListMessage* msg, Cre
 		for (int i = 0; i < modules.size(); i++) {
 			auto& module = modules.get(i);
 
-			if (module != nullptr) {
-				module->fillAttributeList(msg, object);
+			if (module == nullptr) {
+				continue;
 			}
+
+			module->fillAttributeList(msg, object);
 		}
 	}
 }
@@ -116,7 +118,8 @@ void DroidObjectImplementation::notifyInsertToZone(Zone* zone) {
 
 			for (int i = 0; i< variables.size(); ++i) {
 				String varkey = variables.elementAt(i).getKey();
-				if (varkey.contains("color")) {
+
+				if (varkey != "/private/index_color_0" && varkey.contains("color")) {
 					setCustomizationVariable(varkey, paintCount - 1, true); // Palette values 3,2,1,0 are grey->white
 				}
 			}
@@ -239,7 +242,7 @@ void DroidObjectImplementation::initDroidModules() {
 
 void DroidObjectImplementation::initDroidWeapons() {
 	//Set weapon stats
-	WeaponObject* weapon = asAiAgent()->getDefaultWeapon();
+	WeaponObject* weapon = getDefaultWeapon();
 
 	if (weapon != nullptr) {
 		Locker locker(weapon);
@@ -248,11 +251,14 @@ void DroidObjectImplementation::initDroidWeapons() {
 		weapon->setAttackSpeed(getAttackSpeed());
 	}
 
-	if (primaryWeapon != nullptr && primaryWeapon != weapon) {
-		Locker locker(primaryWeapon);
-		primaryWeapon->setMinDamage(getDamageMin());
-		primaryWeapon->setMaxDamage(getDamageMax());
-		primaryWeapon->setAttackSpeed(getAttackSpeed());
+	ManagedReference<WeaponObject*> primaryWeap = getPrimaryWeapon();
+
+	if (primaryWeap != nullptr && primaryWeap != weapon) {
+		Locker locker(primaryWeap);
+
+		primaryWeap->setMinDamage(getDamageMin());
+		primaryWeap->setMaxDamage(getDamageMax());
+		primaryWeap->setAttackSpeed(getAttackSpeed());
 	}
 }
 
@@ -267,6 +273,11 @@ CraftingStation* DroidObjectImplementation::getCraftingStation(int type) {
 				CraftingStation* craftingStation = craftingModule->getCraftingStation();
 
 				if (craftingStation != nullptr) {
+					if (craftingStation->getDroidParent().get() == nullptr) {
+						Locker lock(craftingStation);
+						craftingStation->setDroidParent(_this.getReferenceUnsafeStaticCast());
+					}
+
 					// case here to check each type
 					if (craftingModule->validCraftingType(type) || (type == CraftingTool::JEDI && craftingModule->isWeaponDroidGeneric())) {
 						return craftingStation;

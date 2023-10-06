@@ -73,7 +73,7 @@ TatooineMosEnthaScreenPlay = CityScreenPlay:new {
 		{"mos_entha_police_officer", "mos_entha_police_officer_rebel", 1448.8,7,3344.5,-105,0, "", ""},
 	},
 
-	patrolNpcs = {"commoner_fat_patrol", "commoner_old_patrol", "commoner_tatooine_patrol", "commoner_technician", "explorer", "gambler", "scientist_patrol"},
+	patrolNpcs = {"commoner_fat_patrol", "commoner_old_patrol", "commoner_tatooine_patrol", "commoner_technician_patrol", "explorer_patrol", "gambler_patrol", "scientist_patrol"},
 
 	patrolMobiles = {
 		--{patrolPoints, template, x, z, y, direction, cell, mood, combatPatrol},
@@ -130,7 +130,7 @@ TatooineMosEnthaScreenPlay = CityScreenPlay:new {
 
 	stationaryCommoners = {"commoner", "commoner_fat", "commoner_old", "commoner_tatooine"},
 	stationaryNpcs = {"artisan", "bodyguard", "bothan_diplomat", "bounty_hunter", "businessman", "commoner_technician", "contractor", "criminal", "entertainer", "explorer", "farmer", "farmer_rancher", "fringer",
-			"gadget_specialist", "gambler", "info_broker", "medic", "mercenary", "miner", "noble", "official", "pilot", "rancher", "scavenger", "scientist", "slicer"},
+			"gambler", "info_broker", "medic", "mercenary", "miner", "noble", "official", "pilot", "rancher", "scavenger", "scientist", "slicer"},
 
 	--{respawn, x, z, y, direction, cell, mood}
 	stationaryMobiles = {
@@ -142,14 +142,14 @@ TatooineMosEnthaScreenPlay = CityScreenPlay:new {
 		{1, 1302.38, 7, 3357.34, 93, 0, ""}, {1, 1449.68, 7, 3159.65, 96, 0, ""}, {1, 1449.89, 7, 3138, 131, 0, ""}, {1, 1516.09, 7, 3164.73, 72, 0, ""},
 		{1, 1619.54, 11, 3228.91, 330, 0, ""}, {1, 1615.17, 7, 3313.63, 227, 0, ""}, {1, 1554.59, 15, 3500.85, 259, 0, ""}, {1, 1326.93, 7, 3163.39, 359, 0, "conversation"},
 		{1, 1326.44, 7, 3120.75, 180, 0, "conversation"}, {1, 1326.44, 7, 3119.75, 0, 0, "conversation"}, {1, 1191.8, 7, 2955.7, 360, 0, "conversation"}, {1, 1455.33, 7, 3335.99, 114, 0, ""},
-		{1, 1455.33, 7, 3335.99, 114, 0, "calm"}, {1, 1209.57, 7, 2923.54, 58, 0, ""},
+		{1, 1455.33, 7, 3335.99, 114, 0, "calm"}
 	},
 
 	mobiles = {
 		--eastern Tavern
 		{"scientist",60,-4.9,1.0,9.0,-12,1153626, "neutral"},
 		{"scientist",60,1.7,1,5.3,90,1153626, ""},
-		{"mercenary",60,-6.8,0.4,-7.4,9,1153625, "npc_sitting_chair"},
+		{"mercenary",300,-6.8,0.4,-7.4,9,1153625, "npc_sitting_chair"},
 		{"patron_devaronian",60,-7.0,0.4,-4.2,-151,1153625, "npc_sitting_chair"},
 		{"vendor",60,5.0,0.4,-10.2,23,1153625, "npc_sitting_chair"},
 		{"mouse_droid",60,5.1,1.0,9.4,173,1153624, "sad"},
@@ -157,7 +157,7 @@ TatooineMosEnthaScreenPlay = CityScreenPlay:new {
 		--Starport
 		{"contractor",300,53.5956,-0.521137,38.1243,135.004,4005523, "conversation"},
 		{"commoner_tatooine",60,54.6956,-0.521137,37.0243,360.011,4005523, "conversation"},
-		{"mercenary",60,54.6956,-0.521137,38.1243,180.008,4005523, "conversation"},
+		{"mercenary",300,54.6956,-0.521137,38.1243,180.008,4005523, "conversation"},
 		{"chassis_dealer",60,2.14833,0.639422,67.5897,224.216,4005520, "neutral"},
 		{"farmer",300,-36.1846,1.63942,64.2406,180.002,4005525, "conversation"},
 		{"commoner_technician",300,-36.1846,1.63942,63.1406,360.011,4005525, "conversation"},
@@ -175,13 +175,13 @@ TatooineMosEnthaScreenPlay = CityScreenPlay:new {
 		{"entertainer",60,13.1,1.3,-15.5,163,1233976, "conversation"},
 
 		--center Tavern A
-		{"commoner_technician",60,5.1,1.0,10.2,2,1153934, "npc_use_terminal_high"},
+		{"commoner_technician",300,5.1,1.0,10.2,2,1153934, "npc_use_terminal_high"},
 		{"businessman",60,-1.9,1,6.8,-95,1153936, ""},
 		{"artisan",60,-7.2,0.4,-6.4,-88,1153935, "default"},
 		{"patron_ithorian",60,-9.3,1.0,6.7,90,1153936, "explain"},
 
 		--center Tavern B
-		{"brawler",60,9.2,0.4,-1.7,90,1154209, "bored"},
+		{"brawler",300,9.2,0.4,-1.7,90,1154209, "bored"},
 
 		--center Tavern C
 		{"probot",60,3.0,0.4,-3.5,65,1153961, "neutral"},
@@ -194,7 +194,7 @@ TatooineMosEnthaScreenPlay = CityScreenPlay:new {
 		--center Tavern CC
 		{"chiss_male",60,-2.5,1.0,7.3,89,1153975, "npc_sitting_chair"},
 		{"chiss_female",60,-3.0,1.0,7.3,-89,1153975, "npc_sitting_chair"},
-		{"mercenary",60,-6.9,0.4,-7.1,174,1153974, "sad"},
+		{"mercenary",300,-6.9,0.4,-7.1,174,1153974, "sad"},
 		{"seeker",360,-6.3,0.4,-7.1,-169,1153974, ""},
 
 		--center Tavern BB
@@ -218,7 +218,7 @@ TatooineMosEnthaScreenPlay = CityScreenPlay:new {
 		{"mouse_droid",60,-1.3,0.4,-5.2,46,1157653, "worried"},
 
 		--small house b
-		{"commoner_technician",60,0.5,0.3,4.0,-170,1157641, "npc_use_terminal_high"},
+		{"commoner_technician",300,0.5,0.3,4.0,-170,1157641, "npc_use_terminal_high"},
 
 		--north Tavern b
 		{"artisan",60,4.9,0.4,-10.0,-179,1157666, "bored"},
@@ -233,7 +233,7 @@ TatooineMosEnthaScreenPlay = CityScreenPlay:new {
 		{"surgical_droid_21b",60,10.1,0.4,-5.7,72,1144135, "default"},
 		{"medic",60,4.6,0.4,1.9,-21,1144135, "calm"},
 		{"teras_kasi_master",360,6.6,-9.5,-7.0,-37,1144145, "calm"},
-		{"brawler",60,5.7,-9.5,-5.7,137,1144145, "angry"},
+		{"brawler",300,5.7,-9.5,-5.7,137,1144145, "angry"},
 		{"artisan",60,4.6,1.0,8.7,-103,1144134, "npc_use_terminal_high"},
 
 		--northeast large house
@@ -313,7 +313,7 @@ TatooineMosEnthaScreenPlay = CityScreenPlay:new {
 		{"bounty_hunter",300,27.2773,2.12878,57.8777,180.278,1153602, "conversation"},
 		{"medic",60,27.2719,2.12878,56.7798,0.27412,1153602, "conversation"},
 		{"noble",60,19.26,2.12847,56.13,266.008,1153603, ""},
-		{"brawler",60,3.25667,2.12878,71.8841,360.011,1153603, "conversation"},
+		{"brawler",300,3.25667,2.12878,71.8841,360.011,1153603, "conversation"},
 		{"theater_manager",60,21.99,2.12804,64.05,4.00007,1153603, ""},
 		{"thivauwrai_aphereef",60,3.25667,2.12878,72.8841,180.009,1153603, "conversation"},
 		{"trainer_dancer",0,17.812,2.12873,53.8433,1,1153603, ""},
@@ -388,7 +388,10 @@ TatooineMosEnthaScreenPlay = CityScreenPlay:new {
 		{"jawa_thief",300,1606.7,7,3313.6,6,0, ""},
 		{"jawa_warlord",300,1347.83,7,3060.74,47.0278,0, ""},
 		{"jawa_warlord",300,1608.4,7,3328.1,-21,0, ""},
-		{"jawa_warlord",300,1572.44,7,3337.29,83.3917,0, ""}
+		{"jawa_warlord",300,1572.44,7,3337.29,83.3917,0, ""},
+
+		-- Phase 4 Gadget Specialist
+		{"gadget_specialist", 1, 1209.57, 7, 2923.54, 58, 0, ""}
 	}
 }
 
@@ -460,6 +463,7 @@ function TatooineMosEnthaScreenPlay:spawnMobiles()
 	end
 
 	--Creatures
+	--[[
 	spawnMobile(self.planet, "desert_razorback",300,1085.48,5.82507,3065.96,107.775,0)
 	spawnMobile(self.planet, "desert_razorback",300,1083.59,6.13166,3075.94,41.0805,0)
 	spawnMobile(self.planet, "desert_razorback",300,1094.58,5.57916,3087.09,213.896,0)
@@ -657,4 +661,5 @@ function TatooineMosEnthaScreenPlay:spawnMobiles()
 	spawnMobile(self.planet, "worrt",300,1113.08,18.0283,3257.68,318.548,0)
 	spawnMobile(self.planet, "worrt",300,1191.12,7.30368,2862.36,37.9791,0)
 	spawnMobile(self.planet, "worrt",300,1179.97,6.94709,2862.22,304.96,0)
+	]]
 end

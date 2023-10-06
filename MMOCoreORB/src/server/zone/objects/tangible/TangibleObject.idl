@@ -39,6 +39,7 @@ class TangibleObject extends SceneObject {
 	protected int futureFactionStatus;
 
 	protected boolean invisible;
+	protected transient boolean inNoCombatArea;
 
 	@dereferenced
 	protected VectorMap<string, string> luaStringData;
@@ -46,6 +47,7 @@ class TangibleObject extends SceneObject {
 	@dereferenced
 	protected CustomizationVariables customizationVariables;
 
+	protected int unmitigatedDamage;
 	protected float conditionDamage;
 	protected int maxCondition;
 	protected int useCount;
@@ -86,6 +88,8 @@ class TangibleObject extends SceneObject {
 
 	protected SceneObject antiDecayKitObject;
 
+	protected boolean insurable;
+
 	protected boolean jediRobe;
 	protected boolean unionRing;
 
@@ -104,6 +108,7 @@ class TangibleObject extends SceneObject {
 
 		antiDecayKitObject = null;
 
+		insurable = true;
 		jediRobe = false;
 		unionRing = false;
 
@@ -129,6 +134,7 @@ class TangibleObject extends SceneObject {
 		useCount = 1;
 
 		conditionDamage = 0;
+		unmitigatedDamage = 0;
 
 		sliceable = false;
 		sliced = false;
@@ -531,6 +537,16 @@ class TangibleObject extends SceneObject {
 	}
 
 	@read
+	public int getUnmitigatedDamage() {
+		return unmitigatedDamage;
+	}
+
+	@preLocked
+	public native void addUnmitigatedDamage(float damage) {
+		unmitigatedDamage += (int)damage;
+	}
+
+	@read
 	public int getVolume() {
 		return volume;
 	}
@@ -590,6 +606,11 @@ class TangibleObject extends SceneObject {
 	@read
 	public final DeltaVector<SceneObject> getDefenderList() {
 		return defenderList;
+	}
+
+	@read
+	public boolean hasDefenders() {
+		return defenderList.size() > 0;
 	}
 
 	@local
@@ -682,6 +703,11 @@ class TangibleObject extends SceneObject {
 
 	public void setSliced(boolean slice) {
 		sliced = slice;
+	}
+
+	@read
+	public boolean isInsurable() {
+		return insurable;
 	}
 
 	@read
@@ -814,6 +840,11 @@ class TangibleObject extends SceneObject {
 	public native void addActiveArea(ActiveArea area);
 
 	public void dropActiveArea(ActiveArea area) {
+		if (area.isNoCombatArea()) {
+			inNoCombatArea = false;
+			broadcastPvpStatusBitmask();
+		}
+
 		synchronized (super.getContainerLock()) {
 			activeAreas.drop(area);
 		}
@@ -839,6 +870,16 @@ class TangibleObject extends SceneObject {
 		}
 
 		return false;
+	}
+
+	@read
+	public boolean isInNoCombatArea() {
+		return inNoCombatArea;
+	}
+
+	@preLocked
+	public void setInNoCombatArea(boolean val) {
+		inNoCombatArea = val;
 	}
 
 	@local

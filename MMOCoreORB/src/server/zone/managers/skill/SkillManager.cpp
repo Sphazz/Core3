@@ -383,7 +383,10 @@ bool SkillManager::awardSkill(const String& skillName, CreatureObject* creature,
 	msg4->updateSpeedMultiplierBase();
 	msg4->updateSpeedMultiplierMod();
 	msg4->updateRunSpeed();
-	msg4->updateTerrainNegotiation();
+	msg4->updateWalkSpeed();
+	msg4->updateSlopeModAngle();
+	msg4->updateSlopeModPercent();
+	msg4->updateWaterModPercent();
 	msg4->close();
 	creature->sendMessage(msg4);
 
@@ -398,7 +401,7 @@ void SkillManager::removeSkillRelatedMissions(CreatureObject* creature, Skill* s
 		if(zoneServer != nullptr) {
 			ManagedReference<MissionManager*> missionManager = zoneServer->getMissionManager();
 			if(missionManager != nullptr) {
-				missionManager->failPlayerBountyMission(creature->getObjectID());
+				missionManager->failPlayerBountyMission(creature->getObjectID(), 0);
 			}
 		}
 	}
@@ -540,7 +543,10 @@ bool SkillManager::surrenderSkill(const String& skillName, CreatureObject* creat
 	msg4->updateSpeedMultiplierBase();
 	msg4->updateSpeedMultiplierMod();
 	msg4->updateRunSpeed();
-	msg4->updateTerrainNegotiation();
+	msg4->updateWalkSpeed();
+	msg4->updateSlopeModAngle();
+	msg4->updateSlopeModPercent();
+	msg4->updateWaterModPercent();
 	msg4->close();
 	creature->sendMessage(msg4);
 

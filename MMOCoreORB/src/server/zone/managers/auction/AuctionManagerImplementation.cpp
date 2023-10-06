@@ -830,7 +830,7 @@ AuctionItem* AuctionManagerImplementation::createVendorItem(CreatureObject* play
 	String region = "@planet_n:" + planetStr;
 
 	if (cityRegion != nullptr)
-		region = cityRegion->getRegionName();
+		region = cityRegion->getCityRegionName();
 
 	String name = objectToSell->getDisplayedName();
 
@@ -892,8 +892,8 @@ AuctionItem* AuctionManagerImplementation::createVendorItem(CreatureObject* play
 		item->setExpireTime(commodityExpire);
 	}
 
-	updateAuctionOwner(item, player);
 	ObjectManager::instance()->persistObject(item, 0, "auctionitems");
+	updateAuctionOwner(item, player);
 
 	return item;
 }
@@ -929,7 +929,7 @@ void AuctionManagerImplementation::doInstantBuy(CreatureObject* player, AuctionI
 
 	if( city != nullptr) {
 		tax = item->getPrice() - ( item->getPrice() / ( 1.0f + (city->getSalesTax() / 100.f)));
-		vendorRegionName = city->getRegionName();
+		vendorRegionName = city->getCityRegionName();
 	}
 
 	String playername = player->getFirstName().toLowerCase();
@@ -1340,12 +1340,12 @@ int AuctionManagerImplementation::checkRetrieve(CreatureObject* player, uint64 o
 
 
 	if (vendor->isBazaarTerminal()) {
-		ManagedReference<CityRegion*> region = vendor->getCityRegion().get();
+		ManagedReference<CityRegion*> cityRegion = vendor->getCityRegion().get();
 
 		String location = vendor->getZone()->getZoneName() + ".";
 
-		if (region != nullptr) {
-			location += region->getRegionName();
+		if (cityRegion != nullptr) {
+			location += cityRegion->getCityRegionName();
 			//String region = terminal->getBazaarRegion();
 
 			if (!item->getVendorUID().beginsWith(location)) {
@@ -1488,6 +1488,22 @@ bool AuctionManagerImplementation::checkItemCategory(int category, AuctionItem* 
 }
 AuctionQueryHeadersResponseMessage* AuctionManagerImplementation::fillAuctionQueryHeadersResponseMessage(CreatureObject* player, SceneObject* vendor, TerminalListVector* terminalList, int searchType, uint32 itemCategory, const UnicodeString& filterText, int minPrice, int maxPrice, bool includeEntranceFee, int clientCounter, int offset) {
 	AuctionQueryHeadersResponseMessage* reply = new AuctionQueryHeadersResponseMessage(searchType, clientCounter, player);
+
+#ifdef DEBUG_AUCTION_SEARCH
+	Logger::console.info(true) << __FUNCTION__ << "()"
+		<< " player=" << player->getObjectID()
+		<< "; vendor=" << vendor->getObjectID()
+		<< "; terminalListSize=" << terminalList->size()
+		<< "; searchType=" << searchType
+		<< "; itemCategory=" << itemCategory
+		<< "; filterText=" << filterText.toString()
+		<< "; minPrice=" << minPrice
+		<< "; maxPrice=" << maxPrice
+		<< "; includeEntranceFee=" << includeEntranceFee
+		<< "; clientCounter=" << clientCounter
+		<< "; offset=" << offset
+		;
+#endif // DEBUG_AUCTION_SEARCH
 
 	String pname = player->getFirstName().toLowerCase();
 	uint32 now = time(0);
@@ -1736,7 +1752,7 @@ void AuctionManagerImplementation::getData(CreatureObject* player, int locationT
 	case LT_REGION:
 		city = player->getCityRegion().get();
 		if (city != nullptr)
-			region = city->getRegionName();
+			region = city->getCityRegionName();
 		else {
 			region = "@planet_n:" + player->getZone()->getZoneName();
 			vendor = vendorInUse;
@@ -1754,6 +1770,44 @@ void AuctionManagerImplementation::getData(CreatureObject* player, int locationT
 
 void AuctionManagerImplementation::getAuctionData(CreatureObject* player, SceneObject* usedVendor, const String& planet, const String& region, SceneObject* vendor, int searchType, uint32 itemCategory, const UnicodeString& filterText, int minPrice, int maxPrice, bool includeEntranceFee, int clientCounter, int offset) {
 	TerminalListVector terminalList;
+
+	if (usedVendor->isVendor()) {
+		switch (searchType) {
+		case ST_PLAYER_STOCKROOM:
+		case ST_VENDOR_SELLING:
+		case ST_PLAYER_OFFERS_TO_VENDOR:
+			break;
+
+		case ST_VENDOR_OFFERS:
+		case ST_VENDOR_STOCKROOM: {
+			auto data = usedVendor->getDataObjectComponent();
+
+			if (data == nullptr) {
+				error() << "Vendor " << usedVendor->getObjectID() << " has no data component";
+				return;
+			}
+
+			auto vendorData = cast<VendorDataComponent*>(data->get());
+
+			if (vendorData == nullptr) {
+				error() << "Vendor " << usedVendor->getObjectID() << " has wrong data component";
+				return;
+			}
+
+			if (vendorData->getOwnerId() == player->getObjectID()) {
+				break;
+			}
+		}
+
+		default:
+			error() << "Player " << player->getObjectID() << " tried search type " << searchType << " on vendor " << usedVendor->getObjectID();
+
+			StringIdChatParameter err("@cmd_err:target_range_prose"); //Your target is too far away to %TO.
+			err.setTO("search");
+			player->sendSystemMessage(err);
+			return;
+		}
+	}
 
 	if (usedVendor->isBazaarTerminal() && searchType != ST_VENDOR_SELLING) { // This is to prevent bazaar items from showing on Vendor Search
 		terminalList = auctionMap->getBazaarTerminalData(planet, region, vendor);
@@ -2034,7 +2088,7 @@ void AuctionManagerImplementation::expireAuction(AuctionItem* item) {
 
 	ManagedReference<CityRegion*> city = vendor->getCityRegion().get();
 	if (city != nullptr) {
-		vendorRegionName = city->getRegionName();
+		vendorRegionName = city->getCityRegionName();
 	}
 
 	Time expireTime;

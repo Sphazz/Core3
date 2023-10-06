@@ -140,6 +140,7 @@ void SceneObjectImplementation::initializePrivateData() {
 	originalObjectID = 0;
 
 	forceNoTrade = false;
+	debuggingRegions = false;
 }
 
 void SceneObjectImplementation::loadTemplateData(SharedObjectTemplate* templateData) {
@@ -712,12 +713,15 @@ void SceneObjectImplementation::broadcastMessagePrivate(BasePacket* message, Sce
 #endif
 
 	for (int i = 0; i < closeNoneReference.size(); ++i) {
-		SceneObject* scno = static_cast<SceneObject*>(closeNoneReference.getUnsafe(i));
+		SceneObject* sceneO = static_cast<SceneObject*>(closeNoneReference.getUnsafe(i));
+
+		if (sceneO == nullptr || sceneO == selfObject)
+			continue;
 
 #ifdef LOCKFREE_BCLIENT_BUFFERS
-		scno->sendMessage(pack);
+		sceneO->sendMessage(pack);
 #else
-		scno->sendMessage(message->clone());
+		sceneO->sendMessage(message->clone());
 #endif
 	}
 
@@ -1206,6 +1210,16 @@ void SceneObjectImplementation::rotate(int degrees) {
 	direction.rotate(unity, degrees);
 }
 
+void SceneObjectImplementation::rotatePitch(int degrees) {
+	Vector3 unity(0, 0, 1);
+	direction.rotate(unity, degrees);
+}
+
+void SceneObjectImplementation::rotateRoll(int degrees) {
+	Vector3 unity(1, 0, 0);
+	direction.rotate(unity, degrees);
+}
+
 void SceneObjectImplementation::fillObjectMenuResponse(ObjectMenuResponse* menuResponse, CreatureObject* player) {
 	if (objectMenuComponent == nullptr) {
 		error("no object menu component set for " + templateObject->getTemplateFileName());
@@ -1404,7 +1418,7 @@ void SceneObjectImplementation::createChildObjects() {
 				}
 			}
 
-			if (!getZoneUnsafe()->transferObject(obj, -1, false)) {
+			if (!getZoneUnsafe()->transferObject(obj, -1, true)) {
 				obj->destroyObjectFromDatabase(true);
 				continue;
 			}
@@ -2046,6 +2060,8 @@ int SceneObjectImplementation::writeRecursiveJSON(JSONSerializationType& j, int 
 }
 
 String SceneObjectImplementation::exportJSON(const String& exportNote, int maxDepth, bool pruneCreo, bool pruneCraftedComponents) {
+	static AtomicInteger sequence;
+
 	Time startTime;
 	uint64 oid = getObjectID();
 
@@ -2086,29 +2102,25 @@ String SceneObjectImplementation::exportJSON(const String& exportNote, int maxDe
 	exportObject["metadata"] = metaData;
 	exportObject["objects"] = exportedObjects;
 
+	auto exportBasedir = ConfigManager::instance()->getString("Core3.SceneObject.exportDir", "log/exports/%Y-%m-%d/%H/");
+
 	// Save to file...
+	Time now;
 	StringBuffer fileNameBuf;
 
-	// Spread the files out across directories
-	fileNameBuf << "exports";
-	if (!File::doMkdir(fileNameBuf.toString().toCharArray(), 0770)) {
-		warning() << "could not create " << fileNameBuf << " directory";
+	fileNameBuf << now.getFormattedTime(exportBasedir) << oid << "/";
+
+	String dirName = fileNameBuf.toString();
+
+	if (File::directorySeparator() != '/') {
+		dirName.replaceAll("/", String().concat(File::directorySeparator()));
 	}
 
-	fileNameBuf << File::directorySeparator() << String::hexvalueOf((int64)((oid & 0xFFFF000000000000) >> 48));
-	if (!File::doMkdir(fileNameBuf.toString().toCharArray(), 0770)) {
-		warning() << "could not create " << fileNameBuf << " directory";
-	}
+	File::mkpath(dirName, 0755);
 
-	fileNameBuf << File::directorySeparator() << String::hexvalueOf((int64)((oid & 0x0000FFFFFF000000) >> 24));
-	if (!File::doMkdir(fileNameBuf.toString().toCharArray(), 0770)) {
-		warning() << "could not create " << fileNameBuf << " directory";
-	}
-
-	fileNameBuf << File::directorySeparator() << oid << "-" << startTime.getMiliTime() << ".json";
+	fileNameBuf << oid << "-" << now.getMiliTime() << "-" << sequence.increment() << ".json";
 
 	String fileName = fileNameBuf.toString();
-
 	std::ofstream jsonFile(fileName.toCharArray());
 	jsonFile << std::setw(4) << exportObject << std::endl;
 	jsonFile.close();
@@ -2165,4 +2177,33 @@ void SceneObjectImplementation::getChildrenRecursive(SortedVector<uint64>& child
 
 String SceneObjectImplementation::getGameObjectTypeStringID() {
 	return SceneObjectType::typeToString(gameObjectType);
+}
+
+bool SceneObjectImplementation::isNearBank() {
+	Zone* zone = getZone();
+
+	if (zone != nullptr) {
+		SortedVector<QuadTreeEntry* > closeObjects;
+		zone->getInRangeObjects(getPositionX(), getPositionY(), 15.f, &closeObjects, true, false);
+
+		bool nearBank = false;
+
+		for (int i = 0; i < closeObjects.size(); ++i) {
+			SceneObject* sceneO = cast<SceneObject*>(closeObjects.get(i));
+
+			if (sceneO == nullptr)
+				continue;
+
+			if (sceneO->getGameObjectType() == SceneObjectType::BANK) {
+				nearBank = true;
+				break;
+			}
+		}
+
+		if (nearBank) {
+			return true;
+		}
+	}
+
+	return false;
 }

@@ -16,6 +16,7 @@
 #include "templates/datatables/DataTableRow.h"
 #include "server/chat/ChatManager.h"
 #include "server/zone/objects/player/FactionStatus.h"
+#include "server/zone/objects/creature/commands/QueueCommand.h"
 
 void PetManagerImplementation::loadLuaConfig() {
 	info("Loading configuration file.", true);
@@ -274,7 +275,9 @@ void PetManagerImplementation::handleChat(CreatureObject* speaker, AiAgent* pet,
 
 		Locker plocker(pcd, speaker);
 		pcd->setLastCommander(speaker);
-		pcd->setLastCommand(command);
+
+		if (command != GROUP)
+			pcd->setLastCommand(command);
 	}
 }
 
@@ -473,12 +476,13 @@ void PetManagerImplementation::enqueuePetCommand(CreatureObject* player, AiAgent
 		targetID = player->getTargetID();
 
 	// CreatureObject* pet, uint32 command, const String& args, uint64 target, int priority = -1
-	EnqueuePetCommand* enqueueCommand = new EnqueuePetCommand(pet, command, args, targetID, 1);
-	enqueueCommand->execute();
+	EnqueuePetCommand* enqueueCommand = new EnqueuePetCommand(pet, command, args, targetID, QueueCommand::NOCOMBATQUEUE);
+	enqueueCommand->schedule(50);
 }
 
 void PetManagerImplementation::enqueueOwnerOnlyPetCommand(CreatureObject* player, AiAgent* pet, uint32 command, const String& args) {
 	ManagedReference<CreatureObject*> linkedCreature = pet->getLinkedCreature().get();
+
 	if (linkedCreature == nullptr)
 		return;
 
@@ -487,8 +491,8 @@ void PetManagerImplementation::enqueueOwnerOnlyPetCommand(CreatureObject* player
 		return;
 
 	// CreatureObject* pet, uint32 command, const String& args, uint64 target, int priority = -1
-	EnqueuePetCommand* enqueueCommand = new EnqueuePetCommand(pet, command, args, player->getTargetID(), 1);
-	enqueueCommand->execute();
+	EnqueuePetCommand* enqueueCommand = new EnqueuePetCommand(pet, command, args, player->getTargetID(), QueueCommand::NOCOMBATQUEUE);
+	enqueueCommand->schedule(50);
 }
 
 int PetManagerImplementation::notifyDestruction(TangibleObject* destructor, AiAgent* destructedObject, int condition, bool isCombatAction) {

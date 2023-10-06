@@ -20,6 +20,9 @@
 #include "server/zone/managers/reaction/ReactionManager.h"
 #include "server/zone/objects/intangible/PetControlDevice.h"
 #include "server/zone/objects/creature/ai/AiAgent.h"
+#include "server/zone/objects/intangible/tasks/PetControlDeviceStoreObjectTask.h"
+#include "server/zone/objects/area/ActiveArea.h"
+#include "server/zone/managers/creature/PetManager.h"
 
 const char LuaAiAgent::className[] = "LuaAiAgent";
 
@@ -40,11 +43,11 @@ Luna<LuaAiAgent>::RegType LuaAiAgent::Register[] = {
 		{ "getMovementState", &LuaAiAgent::getMovementState },
 		{ "setMovementState", &LuaAiAgent::setMovementState },
 		{ "setNextPosition", &LuaAiAgent::setNextPosition },
-		{ "findNextPosition", &LuaAiAgent::findNextPosition },
 		{ "getMaxDistance", &LuaAiAgent::getMaxDistance },
 		{ "generatePatrol", &LuaAiAgent::generatePatrol },
+		{ "clearPatrolPoints", &LuaAiAgent::clearPatrolPoints },
+		{ "clearCurrentPath", &LuaAiAgent::clearCurrentPath },
 		{ "setDestination", &LuaAiAgent::setDestination },
-		{ "completeMove", &LuaAiAgent::completeMove },
 		{ "isWaiting", &LuaAiAgent::isWaiting },
 		{ "stopWaiting", &LuaAiAgent::stopWaiting },
 		{ "setWait", &LuaAiAgent::setWait },
@@ -90,6 +93,7 @@ Luna<LuaAiAgent>::RegType LuaAiAgent::Register[] = {
 		{ "hasLoot", &LuaAiAgent::hasLoot },
 		{ "isEventMob", &LuaAiAgent::isEventMob },
 		{ "isPet", &LuaAiAgent::isPet },
+		{ "isFactionPet", &LuaAiAgent::isFactionPet },
 		{ "isCreature", &LuaSceneObject::isCreature},
 		{ "isAggressiveTo", &LuaAiAgent::isAggressiveTo },
 		{ "isAttackableBy", &LuaAiAgent::isAttackableBy },
@@ -123,13 +127,14 @@ Luna<LuaAiAgent>::RegType LuaAiAgent::Register[] = {
 		{ "setNoAiAggro", &LuaAiAgent::setNoAiAggro },
 		{ "doDespawn", &LuaAiAgent::doDespawn },
 		{ "getCreatureTemplateName", &LuaAiAgent::getCreatureTemplateName },
-		{ "clearCreatureBit", &LuaAiAgent::clearCreatureBit },
-		{ "setCreatureBit", &LuaAiAgent::setCreatureBit },
 		{ "isInRangeOfHome", &LuaAiAgent::isInRangeOfHome },
 		{ "getPatrolPointsSize", &LuaAiAgent::getPatrolPointsSize },
 		{ "addCreatureFlag", &LuaAiAgent::addCreatureFlag },
 		{ "removeCreatureFlag", &LuaAiAgent::removeCreatureFlag },
 		{ "setAIDebug", &LuaAiAgent::setAIDebug },
+		{ "storePet", &LuaAiAgent::storePet },
+		{ "setEventArea", &LuaAiAgent::setEventArea },
+		{ "setHamRegenDisabled", &LuaAiAgent::setHamRegenDisabled },
 		{ 0, 0 }
 };
 
@@ -275,21 +280,6 @@ int LuaAiAgent::setMovementState(lua_State* L) {
 	return 0;
 }
 
-/**
- * @param takes a float maxDistance argument
- * @return bool to lua depending on if a new position was found or not
- */
-int LuaAiAgent::findNextPosition(lua_State* L) {
-	bool walk = lua_toboolean(L, -1);
-	float maxDistance = lua_tonumber(L, -2);
-
-	bool found = realObject->findNextPosition(maxDistance, walk);
-
-	lua_pushboolean(L, found);
-
-	return 1;
-}
-
 int LuaAiAgent::getMaxDistance(lua_State* L) {
 	float maxDistance = realObject->getMaxDistance();
 
@@ -309,20 +299,26 @@ int LuaAiAgent::generatePatrol(lua_State* L) {
 	return 1;
 }
 
+int LuaAiAgent::clearPatrolPoints(lua_State* L) {
+	Locker lock(realObject);
+
+	realObject->clearPatrolPoints();
+
+	return 0;
+}
+
+int LuaAiAgent::clearCurrentPath(lua_State* L) {
+	Locker lock(realObject);
+
+	realObject->clearCurrentPath();
+
+	return 0;
+}
+
 int LuaAiAgent::setDestination(lua_State* L) {
 	int retVal = realObject->setDestination();
 
 	lua_pushinteger(L, retVal);
-
-	return 1;
-}
-
-int LuaAiAgent::completeMove(lua_State* L) {
-	Locker locker(realObject);
-
-	bool retVal = realObject->completeMove();
-
-	lua_pushboolean(L, retVal);
 
 	return 1;
 }
@@ -646,6 +642,22 @@ int LuaAiAgent::isPet(lua_State* L) {
 	return 1;
 }
 
+int LuaAiAgent::isFactionPet(lua_State* L) {
+	bool factionPet = false;
+
+	if (realObject->isPet()) {
+		ManagedReference<PetControlDevice*> controlDevice = realObject->getControlDevice().get().castTo<PetControlDevice*>();
+
+		if (controlDevice != nullptr) {
+			factionPet = controlDevice->getPetType() == PetManager::FACTIONPET;
+		}
+	}
+
+	lua_pushboolean(L, factionPet);
+
+	return 1;
+}
+
 int LuaAiAgent::isAggressiveTo(lua_State* L) {
 	CreatureObject* obj = (CreatureObject*) lua_touserdata(L, -1);
 
@@ -693,9 +705,17 @@ int LuaAiAgent::shouldRetreat(lua_State* L) {
 }
 
 int LuaAiAgent::leash(lua_State* L) {
+	bool forcePeace = true;
+
+	int numberOfArguments = lua_gettop(L);
+
+	if (numberOfArguments == 1) {
+		forcePeace = lua_toboolean(L, -1);
+	}
+
 	Locker locker(realObject);
 
-	realObject->leash();
+	realObject->leash(forcePeace);
 
 	return 0;
 }
@@ -729,7 +749,7 @@ int LuaAiAgent::activateRecovery(lua_State* L) {
 
 int LuaAiAgent::executeBehavior(lua_State* L) {
 	Locker locker(realObject);
-	realObject->activateMovementEvent();
+	realObject->activateAiBehavior();
 	return 0;
 }
 
@@ -946,8 +966,12 @@ int LuaAiAgent::setHomeLocation(lua_State* L) {
 int LuaAiAgent::setNoAiAggro(lua_State* L) {
 	Locker locker(realObject);
 
-	if (!(realObject->getCreatureBitmask() & CreatureFlag::NOAIAGGRO))
-		realObject->setCreatureBitmask(realObject->getCreatureBitmask() + CreatureFlag::NOAIAGGRO);
+	if (!(realObject->getCreatureBitmask() & CreatureFlag::NOAIAGGRO)) {
+		uint32 creatureBitmask = realObject->getCreatureBitmask();
+		creatureBitmask |= CreatureFlag::NOAIAGGRO;
+
+		realObject->setCreatureBitmask(creatureBitmask);
+	}
 
 	return 0;
 }
@@ -971,22 +995,6 @@ int LuaAiAgent::getCreatureTemplateName(lua_State* L) {
 
 	lua_pushstring(L, creoTemplName.toCharArray());
 	return 1;
-}
-
-int LuaAiAgent::clearCreatureBit(lua_State* L) {
-	Locker locker(realObject);
-
-	realObject->clearCreatureBit(lua_tointeger(L, -1));
-
-	return 0;
-}
-
-int LuaAiAgent::setCreatureBit(lua_State* L) {
-	Locker locker(realObject);
-
-	realObject->setCreatureBit(lua_tointeger(L, -1));
-
-	return 0;
 }
 
 int LuaAiAgent::isInRangeOfHome(lua_State* L) {
@@ -1033,6 +1041,44 @@ int LuaAiAgent::setAIDebug(lua_State* L) {
 
 	Locker locker(realObject);
 	realObject->setAIDebug(true);
+
+	return 0;
+}
+
+int LuaAiAgent::storePet(lua_State* L) {
+	if (!realObject->isPet())
+		return 0;
+
+	CreatureObject* owner = realObject->getLinkedCreature().get();
+	ManagedReference<PetControlDevice*> controlDevice = realObject->getControlDevice().get().castTo<PetControlDevice*>();
+
+	if (owner != nullptr && controlDevice != nullptr) {
+		Reference<PetControlDeviceStoreObjectTask*> task = new PetControlDeviceStoreObjectTask(controlDevice, owner, true);
+		task->execute();
+	}
+
+	return 0;
+}
+
+int LuaAiAgent::setEventArea(lua_State* L) {
+	ActiveArea* area = (ActiveArea*) lua_touserdata(L, -1);
+
+	if (area == nullptr)
+		return 0;
+
+	Locker lock(realObject);
+
+	realObject->setEventArea(area);
+
+	return 0;
+}
+
+int LuaAiAgent::setHamRegenDisabled(lua_State* L) {
+	bool regenDisabled = lua_toboolean(L, -1);
+
+	Locker lock(realObject);
+
+	realObject->setHamRegenDisabled(regenDisabled);
 
 	return 0;
 }

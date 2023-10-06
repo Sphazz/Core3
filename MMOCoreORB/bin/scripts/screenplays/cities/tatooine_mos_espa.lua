@@ -38,7 +38,7 @@ TatooineMosEspaScreenPlay = CityScreenPlay:new {
 		{"mos_espa_police_officer", "mos_espa_police_officer_rebel", -2976.54,5,2011.63,171.014,0, "", ""},
 	},
 
-	patrolNpcs = {"commoner_fat_patrol", "commoner_old_patrol", "commoner_tatooine_patrol", "commoner_technician", "explorer", "gambler", "scientist_patrol"},
+	patrolNpcs = {"commoner_fat_patrol", "commoner_old_patrol", "commoner_tatooine_patrol", "commoner_technician_patrol", "explorer_patrol", "gambler_patrol", "scientist_patrol"},
 
 	patrolMobiles = {
 		--{patrolPoints, template, x, z, y, direction, cell, mood, combatPatrol},
@@ -103,7 +103,7 @@ TatooineMosEspaScreenPlay = CityScreenPlay:new {
 
 	--{respawn, x, z, y, direction, cell, mood}
 	stationaryMobiles = {
-		{1, -2918.94, 5, 2169.6, 0, 0, "conversation"},	{1, -2881.87, 5, 2142.69, 18.8035, 0, ""}, {1, -2787.25, 5, 1962.04, 14.8999, 0, ""}, {1, -2939.1, 5, 1962.9, 15.9578, 0, ""},
+		{1, -2918.94, 5, 2169.6, 0, 0, "conversation"}, {1, -2881.87, 5, 2142.69, 18.8035, 0, ""}, {1, -2787.25, 5, 1962.04, 14.8999, 0, ""}, {1, -2939.1, 5, 1962.9, 15.9578, 0, ""},
 		{1, -2912.23, 5, 1928.7, 337.934, 0, ""}, {1, -2881.87, 5, 1974.41, 329.04, 0, ""}, {1, -3019.69, 5, 2114.97, 73.4692, 0, ""}, {1, -2881.8, 5, 2267.4, 180, 0, ""},
 		{1, -2897.39, 5, 2323.06, 54.7434, 0, ""}, {1, -2976.72, 5.52789, 2333.09, 215.86, 0, ""},	{1, -2931.98, 5, 2495.44, 266.081, 0, ""}, {1, -2774.25, 5, 2018.1, 237.899, 0, ""},
 		{1, -2739.74, 5, 2044.75, 99.9046, 0, ""}, {1, -2722.49, 5, 2007.18, 217.488, 0, ""}, {1, -2767.35, 5, 2232.76, 164.701, 0, ""}, {1, -2766.88, 5, 2314.77, 201.13, 0, ""},
@@ -111,7 +111,7 @@ TatooineMosEspaScreenPlay = CityScreenPlay:new {
 		{1, -2890.19, 5, 2251.37, 190.438, 0, ""}, {1, -2839.04, 5, 2492.89, 55.3765, 0, ""}, {1, -2874.25, 5, 2546.29, 122.899, 0, ""}, {1, -2881.23, 5, 2004.94, 233.054, 0, ""},
 		{1, -2818.45, 5, 2407.94, 238.346, 0, ""}, {1, -2859.3, 5, 2288.53, 351.513, 0, ""}, {1, -3007.6, 5, 2372.2, -133, 0, ""}, {1, -2860.36, 5, 2212.37, 343.92, 0, ""},
 		{1, -2831.34, 5, 1912.49, 217.51, 0, ""}, {1, -2807.11, 5, 1953.71, 320.134, 0, ""}, {1, -3115.34, 5, 2084.32, 284.484, 0, ""}, {1, -3000.81, 5, 2213.95, 148.773, 0, ""},
-		{1, -2978.76, 5, 2473.24, 5.89742, 0, ""}, {1, -2884.43, 5, 2575.51, 325.132, 0, ""}, {1, -2894.24, 5, 2492.22, 84.423, 0, ""},	{1, -2810.06, 5, 2318.02, 268.996, 0, ""},
+		{1, -2978.76, 5, 2473.24, 5.89742, 0, ""}, {1, -2884.43, 5, 2575.51, 325.132, 0, ""}, {1, -2894.24, 5, 2492.22, 84.423, 0, ""}, {1, -2810.06, 5, 2318.02, 268.996, 0, ""},
 	},
 
 	mobiles = {
@@ -145,8 +145,8 @@ TatooineMosEspaScreenPlay = CityScreenPlay:new {
 		{"shadowy_figure",60,0,0.5,-6.9,180,1261454, "angry"},
 		{"r4",60,-1.9,1.0,5.9,130,1261454, ""},
 		{"r4",60,1.9,1.0,5.9,-130,1261454, ""},
-		{"mercenary",60,-6.9,2.0,10,100,1261453, "npc_accusing"},
-		{"mercenary",60,6.9,2.0,10,-100,1261453, "npc_accusing"},
+		{"mercenary",300,-6.9,2.0,10,100,1261453, "npc_accusing"},
+		{"mercenary",300,6.9,2.0,10,-100,1261453, "npc_accusing"},
 		{"bounty_hunter", 1, 2.3, 0.5, -10.0, 0, 1261454, ""},
 		{"imperial_exterminator", 300, -2.3, 0.5, -10.0, 0, 1261454, ""},
 
@@ -156,7 +156,7 @@ TatooineMosEspaScreenPlay = CityScreenPlay:new {
 		{"patron_ishitib",60,-4.5,0.4,-5.5,-40,1261582, ""},
 		{"patron_klaatu",60,-5.1,0.4,-4.3,149,1261582, "conversation"},
 		{"contractor",60,-6.5,-4.0,-6.8,-90,1261586, "worried"},
-		{"commoner_technician",60,-6.3,-4.0,-5.9,-112,1261586, "sad"},
+		{"commoner_technician",300,-6.3,-4.0,-5.9,-112,1261586, "sad"},
 
 		--west Tavern
 		{"commoner_naboo",60,-3.6,1.0,9.3,0,1261570, ""},
@@ -175,10 +175,8 @@ TatooineMosEspaScreenPlay = CityScreenPlay:new {
 		{"contractor",60,-3.69,1.13306,-6,11.0003,1256306, ""},
 		{"miner",60,3.29,1.13306,-9.58,249.007,1256011, ""},
 		{"trainer_artisan",0,-0.0885271,1.13306,-14.0283,2,1256011, ""},
-		{"coa3_information_rebel",60,14.2091,1.13306,-10.1408,205.638,1256010, ""},
 
 		--Cantina
-		{"bartender",60,-11.1703,-0.894992,1.53149,33.4278,1256058, ""},
 		{"dorn_gestros",60,-6.00754,-0.894992,-5.35219,231.068,1256058, "calm"},
 		{"medic",60,12.1732,-0.894991,3.93609,180.003,1256058, "conversation"},
 		{"sullustan_male",300,12.1732,-0.894992,2.93609,360.011,1256058, "conversation"},
@@ -199,12 +197,12 @@ TatooineMosEspaScreenPlay = CityScreenPlay:new {
 		{"trainer_combatmedic",0,7.93319,0.184067,5.54261,86,4005424, ""},
 
 		--Hotel
-		{"commoner_technician",60,20.2715,1.28309,-1.14578,360.011,1261018, "conversation"},
+		{"commoner_technician",300,20.2715,1.28309,-1.14578,360.011,1261018, "conversation"},
 		{"noble",60,20.2715,1.28309,-0.0457823,179.998,1261018, "conversation"},
 		{"medic",300,19.1715,1.28309,-0.0457823,134.998,1261018, "conversation"},
 		{"scientist",60,20.3,1.6,13.7,-5,1261018, ""},
 		{"mercenary",300,7.41432,1.00001,-5.80893,180.003,1261017, "angry"},
-		{"commoner_technician",60,7.41432,1.00001,-6.90893,0,1261017, "conversation"},
+		{"commoner_technician",300,7.41432,1.00001,-6.90893,0,1261017, "conversation"},
 
 		--Junk Shop
 		{"junk_nado", 0, 1.2, -0.5, 5.5, -144, 1255997, ""},
@@ -370,7 +368,6 @@ function TatooineMosEspaScreenPlay:spawnSceneObjects()
 	spawnSceneObject(self.planet, "object/static/structure/general/droid_probedroid_powerdown.iff", 1.0, -4.0, -7.9, 1718407, math.rad(-90) )
 
 	--southwest Tavern
-	spawnSceneObject(self.planet, "object/mobile/jawa_male.iff", -1.1, 1.0, 9.5, 1261583, 0, 0, 0, 0)
 	spawnSceneObject(self.planet, "object/tangible/furniture/all/frn_all_professor_desk.iff", -7.0, -4.0, -6.5, 1261586, math.rad(90) )
 	spawnSceneObject(self.planet, "object/tangible/furniture/all/bestine_quest_statue.iff", 0.2, -4.0, -10.4, 1261586, math.rad(-50) )
 
@@ -409,7 +406,14 @@ function TatooineMosEspaScreenPlay:spawnMobiles()
 		end
 	end
 
+	local pNpc = spawnMobile(self.planet, "jawa", -1, -1.1, 1.0, 9.5, math.rad(-90), 1261583)
+
+	if (pNpc ~= nil) then
+		CreatureObject(pNpc):setPvpStatusBitmask(0)
+	end
+
 	--Creatures
+	--[[
 	spawnMobile(self.planet, "dwarf_eopie",300,-3217.87,6.7851,2010.86,329.47,0)
 	spawnMobile(self.planet, "dwarf_eopie",300,-3205.35,6.01035,2016.06,32.4216,0)
 	spawnMobile(self.planet, "dwarf_eopie",300,-3208.98,6.12053,2017.03,118.154,0)
@@ -560,4 +564,5 @@ function TatooineMosEspaScreenPlay:spawnMobiles()
 	spawnMobile(self.planet, "worrt",300,-2589.82,5,2226.13,110.267,0)
 	spawnMobile(self.planet, "worrt",300,-2613.31,5.08118,1969.82,347.531,0)
 	spawnMobile(self.planet, "worrt",300,-2628.18,5.04651,1955.15,351.895,0)
+	]]
 end

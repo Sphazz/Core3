@@ -11,7 +11,7 @@
 #include "server/zone/objects/intangible/PetControlDevice.h"
 #include "server/zone/objects/tangible/threat/ThreatMap.h"
 #include "server/chat/ChatManager.h"
-#include "server/zone/managers/gcw/observers/ContainmentTeamObserver.h"
+#include "server/zone/managers/gcw/observers/SquadObserver.h"
 #include "server/zone/objects/player/FactionStatus.h"
 #include "server/zone/managers/reaction/ReactionManager.h"
 #include "server/zone/objects/creature/events/DroidHarvestTask.h"
@@ -26,12 +26,10 @@ namespace leaf {
 
 class GetProspectFromThreatMap : public Behavior {
 public:
-	GetProspectFromThreatMap(const String& className, const uint32 id, const LuaObject& args)
-			: Behavior(className, id, args) {
+	GetProspectFromThreatMap(const String& className, const uint32 id, const LuaObject& args) : Behavior(className, id, args) {
 	}
 
-	GetProspectFromThreatMap(const GetProspectFromThreatMap& a)
-			: Behavior(a) {
+	GetProspectFromThreatMap(const GetProspectFromThreatMap& a) : Behavior(a) {
 	}
 
 	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
@@ -76,12 +74,10 @@ public:
 
 class GetProspectFromTarget : public Behavior {
 public:
-	GetProspectFromTarget(const String& className, const uint32 id, const LuaObject& args)
-			: Behavior(className, id, args) {
+	GetProspectFromTarget(const String& className, const uint32 id, const LuaObject& args) : Behavior(className, id, args) {
 	}
 
-	GetProspectFromTarget(const GetProspectFromTarget& a)
-			: Behavior(a) {
+	GetProspectFromTarget(const GetProspectFromTarget& a) : Behavior(a) {
 	}
 
 	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
@@ -129,10 +125,10 @@ public:
 	}
 
 	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
-		agent->eraseBlackboard("targetProspect");
-
-		if (!agent->isPet())
+		if (agent == nullptr || !agent->isPet())
 			return FAILURE;
+
+		agent->eraseBlackboard("targetProspect");
 
 		Reference<PetControlDevice*> cd = agent->getControlDevice().castTo<PetControlDevice*>();
 		if (cd == nullptr)
@@ -295,7 +291,7 @@ public:
 		if (agent->peekBlackboard("targetProspect"))
 			tar = agent->readBlackboard("targetProspect").get<ManagedReference<SceneObject*> >();
 
-		if (tar == nullptr && ~agent->getCreatureBitmask() & CreatureFlag::FOLLOW && (state == AiAgent::WATCHING || state == AiAgent::STALKING || state == AiAgent::FOLLOWING)) {
+		if (tar == nullptr && !(agent->getCreatureBitmask() & CreatureFlag::FOLLOW) && (state == AiAgent::WATCHING || state == AiAgent::STALKING || state == AiAgent::FOLLOWING)) {
 			agent->setFollowObject(nullptr);
 			return FAILURE;
 		}
@@ -395,7 +391,11 @@ public:
 	}
 
 	Behavior::Status execute(AiAgent* agent, unsigned int startIdx = 0) const {
+		if (agent == nullptr || !agent->isMonster() || agent->getPvpStatusBitmask() & CreatureFlag::AGGRESSIVE)
+			return FAILURE;
+
 		ManagedReference<SceneObject*> tar = nullptr;
+
 		if (agent->peekBlackboard("targetProspect"))
 			tar = agent->readBlackboard("targetProspect").get<ManagedReference<SceneObject*> >();
 
@@ -405,20 +405,20 @@ public:
 		Locker clocker(tar, agent);
 
 		float aggroMod = 1.f;
+
 		if (agent->peekBlackboard("aggroMod"))
 			aggroMod = agent->readBlackboard("aggroMod").get<float>();
 
 		int radius = agent->getAggroRadius();
+
 		if (radius == 0)
 			radius = AiAgent::DEFAULTAGGRORADIUS;
 
-		if (!agent->isNonPlayerCreatureObject()) {
-			float distance = dist - radius * aggroMod;
+		float distance = Math::max(dist, dist - radius * aggroMod);
 
-			agent->writeBlackboard("fleeRange", distance);
-			agent->runAway(tar->asCreatureObject(), distance, false);
-			agent->showFlyText("npc_reaction/flytext", "afraid", 0xFF, 0, 0);
-		}
+		agent->writeBlackboard("fleeRange", distance);
+		agent->runAway(tar->asCreatureObject(), distance, false);
+		agent->showFlyText("npc_reaction/flytext", "afraid", 0xFF, 0, 0);
 
 		return SUCCESS;
 	}
@@ -673,12 +673,12 @@ public:
 				fleeDelay->updateToCurrentTime();
 				fleeDelay->addMiliTime(delay * 1000);
 
-				if (!agent->isInRange(target, 64.f))
+				if (!agent->isInRange(target, 40.f))
 					return FAILURE;
 
-				float distance = System::random(35) + 25;
+				float distance = System::random(20) + 25;
 
-				agent->clearQueueActions();
+				agent->clearQueueActions(true);
 				agent->writeBlackboard("fleeRange", distance);
 
 				agent->runAway(targetCreo, distance, false);
@@ -718,14 +718,14 @@ public:
 			return FAILURE;
 
 		ManagedReference<SceneObject*> newFollow = controlDevice->getLastCommander();
-
 		uint32 lastCommand = controlDevice->getLastCommand();
+		Locker clocker(controlDevice, agent);
 
 		if (lastCommand == PetManager::PATROL) {
-			Locker clocker(controlDevice, agent);
-
 			if (controlDevice->getPatrolPointSize() == 0)
 				return FAILURE;
+
+			controlDevice->setLastCommandTarget(nullptr);
 
 			agent->setFollowObject(nullptr);
 			agent->setMovementState(AiAgent::PATROLLING);
@@ -739,14 +739,18 @@ public:
 			return SUCCESS;
 		} else if (lastCommand == PetManager::GUARD || lastCommand == PetManager::FOLLOWOTHER) {
 			newFollow = controlDevice->getLastCommandTarget();
+		} else {
+			newFollow = agent->getLinkedCreature().get();
 		}
 
 		if (newFollow == nullptr) {
 			return FAILURE;
 		}
 
-		Locker clocker(newFollow, agent);
+		controlDevice->setLastCommandTarget(newFollow);
+		clocker.release();
 
+		Locker flocker(newFollow, agent);
 		agent->setFollowObject(newFollow);
 
 		return SUCCESS;
@@ -772,19 +776,19 @@ public:
 		if (agent == nullptr)
 			return FAILURE;
 
-		ManagedReference<ContainmentTeamObserver*> containmentTeamObserver = nullptr;
+		ManagedReference<SquadObserver*> squadObserver = nullptr;
 		SortedVector<ManagedReference<Observer*>> observers = agent->getObservers(ObserverEventType::SQUAD);
 
 		for (int i = 0; i < observers.size(); i++) {
-			containmentTeamObserver = cast<ContainmentTeamObserver*>(observers.get(i).get());
-			if (containmentTeamObserver != nullptr)
+			squadObserver = cast<SquadObserver*>(observers.get(i).get());
+			if (squadObserver != nullptr)
 				break;
 		}
 
-		if (containmentTeamObserver == nullptr)
+		if (squadObserver == nullptr)
 			return FAILURE;
 
-		AiAgent* squadLeader = containmentTeamObserver->getMember(0);
+		AiAgent* squadLeader = squadObserver->getMember(0);
 
 		if (squadLeader == nullptr || squadLeader == agent)
 			return FAILURE;
@@ -1011,7 +1015,7 @@ public:
 		}
 
 		if (!tarCreo->isInRange(droid, 7.0f + tarCreo->getTemplateRadius() + droid->getTemplateRadius())) {
-			agent->setMovementState(AiAgent::OBLIVIOUS);
+			agent->setMovementState(AiAgent::HARVESTING);
 			agent->setNextPosition(tarCreo->getPositionX(), tarCreo->getPositionZ(), tarCreo->getPositionY(), tarCreo->getParent().get().castTo<CellObject*>());
 
 			droid->notifyObservers(ObserverEventType::STARTCOMBAT, owner);

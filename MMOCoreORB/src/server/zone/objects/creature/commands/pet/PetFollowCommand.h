@@ -57,30 +57,15 @@ public:
 
 		CreatureObject* targetCreature = cast<CreatureObject*>(targetObject.get());
 
-		if (targetCreature == nullptr)
-			return GENERALERROR;
-
-		if (targetCreature != player && targetCreature->isAttackableBy(creature) && !CollisionManager::checkLineOfSight(player, targetObject)) {
+		if (targetCreature == nullptr) {
 			pet->showFlyText("npc_reaction/flytext", "confused", 204, 0, 0); // "?!!?!?!"
-			return INVALIDTARGET;
-		}
-
-		Reference<CellObject*> targetCell = targetObject->getParent().get().castTo<CellObject*>();
-
-		if (targetCell != nullptr) {
-			auto perms = targetCell->getContainerPermissions();
-
-			if (!perms->hasInheritPermissionsFromParent()) {
-				if (!targetCell->checkContainerPermission(player, ContainerPermissions::WALKIN)) {
-					pet->showFlyText("npc_reaction/flytext", "confused", 204, 0, 0); // "?!!?!?!"
-					return INVALIDTARGET;
-				}
-			}
+			return GENERALERROR;
 		}
 
 		// Check if droid has power
 		if (controlDevice->getPetType() == PetManager::DROIDPET) {
 			ManagedReference<DroidObject*> droidPet = cast<DroidObject*>(pet.get());
+
 			if (droidPet == nullptr)
 				return GENERALERROR;
 
@@ -90,12 +75,25 @@ public:
 			}
 		}
 
+		if (targetCreature != player && (targetCreature->isAttackableBy(pet) || targetCreature->isDead() || !CollisionManager::checkLineOfSight(player, targetCreature) || !playerEntryCheck(player, targetCreature))) {
+			pet->showFlyText("npc_reaction/flytext", "confused", 204, 0, 0); // "?!!?!?!"
+			targetCreature = player;
+		}
+
 		// attempt peace if the pet is in combat
 		if (pet->isInCombat())
 			CombatManager::instance()->attemptPeace(pet);
 
-		pet->setFollowObject(targetObject);
+		Locker clocker(controlDevice, creature);
+		controlDevice->setLastCommandTarget(targetCreature);
+		clocker.release();
+
+		pet->setFollowObject(targetCreature);
 		pet->storeFollowObject();
+
+		if (pet->isResting()) {
+			pet->setMovementState(AiAgent::FOLLOWING);
+		}
 
 		pet->notifyObservers(ObserverEventType::STARTCOMBAT, pet->getLinkedCreature().get());
 

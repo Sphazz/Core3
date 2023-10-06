@@ -20,7 +20,24 @@ Luna<LuaActiveArea>::RegType LuaActiveArea::Register[] = {
 		{ "getObjectID", &LuaSceneObject::getObjectID },
 		{ "setCellObjectID", &LuaActiveArea::setCellObjectID },
 		{ "getCellObjectID", &LuaActiveArea::getCellObjectID },
+		{ "isNoSpawnArea", &LuaActiveArea::isNoSpawnArea },
 		{ "setNoSpawnArea", &LuaActiveArea::setNoSpawnArea },
+		{ "isPvpArea", &LuaActiveArea::isPvpArea },
+		{ "setPvpArea", &LuaActiveArea::setPvpArea },
+		{ "isOvertOnlyArea", &LuaActiveArea::isOvertOnlyArea },
+		{ "setOvertOnlyArea", &LuaActiveArea::setOvertOnlyArea },
+		{ "isRebelOnlyArea", &LuaActiveArea::isRebelOnlyArea },
+		{ "setRebelOnlyArea", &LuaActiveArea::setRebelOnlyArea },
+		{ "isImperialOnlyArea", &LuaActiveArea::isImperialOnlyArea },
+		{ "setImperialOnlyArea", &LuaActiveArea::setImperialOnlyArea },
+		{ "isNoCombatArea", &LuaActiveArea::isNoCombatArea },
+		{ "setNoCombatArea", &LuaActiveArea::setNoCombatArea },
+		{ "isNoPetArea", &LuaActiveArea::isNoPetArea },
+		{ "setNoPetArea", &LuaActiveArea::setNoPetArea },
+		{ "isLockedArea", &LuaActiveArea::isLockedArea },
+		{ "setLockedArea", &LuaActiveArea::setLockedArea },
+		{ "setCampingArea", &LuaActiveArea::setCampingArea },
+		{ "getAreaName", &LuaActiveArea::getAreaName },
 		{ 0, 0 }
 };
 
@@ -68,13 +85,18 @@ int LuaActiveArea::setRadius(lua_State* L) {
 int LuaActiveArea::setNoBuildArea(lua_State* L) {
 	bool val = lua_toboolean(L, -1);
 	Locker realObjectLocker(realObject);
-	realObject->setNoBuildArea(val);
+
+	if (val) {
+		realObject->addAreaFlag(ActiveArea::NOBUILDZONEAREA);
+	} else {
+		realObject->removeAreaFlag(ActiveArea::NOBUILDZONEAREA);
+	}
 
 	return 0;
 }
 
 int LuaActiveArea::isNoBuildArea(lua_State* L) {
-	bool val = realObject->isNoBuildArea();
+	bool val = realObject->isNoBuildZone();
 
 	lua_pushboolean(L, val);
 
@@ -100,7 +122,155 @@ int LuaActiveArea::getCellObjectID(lua_State* L) {
 int LuaActiveArea::setNoSpawnArea(lua_State* L) {
 	bool val = lua_toboolean(L, -1);
 	Locker realObjectLocker(realObject);
-	realObject->setNoSpawnArea(val);
+
+	if (val) {
+		realObject->addAreaFlag(ActiveArea::NOSPAWNAREA);
+		realObject->addAreaFlag(ActiveArea::NOWORLDSPAWNAREA);
+	} else {
+		realObject->removeAreaFlag(ActiveArea::NOSPAWNAREA);
+		realObject->removeAreaFlag(ActiveArea::NOWORLDSPAWNAREA);
+	}
 
 	return 0;
+}
+
+int LuaActiveArea::isNoSpawnArea(lua_State* L) {
+	bool val = realObject->isNoSpawnArea();
+
+	lua_pushboolean(L, val);
+
+	return 1;
+}
+
+int LuaActiveArea::setPvpArea(lua_State* L) {
+	bool val = lua_toboolean(L, -1);
+	Locker realObjectLocker(realObject);
+	realObject->setPvpArea(val);
+
+	return 0;
+}
+
+int LuaActiveArea::isPvpArea(lua_State* L) {
+	bool val = realObject->isPvpArea();
+
+	lua_pushboolean(L, val);
+
+	return 1;
+}
+
+int LuaActiveArea::setOvertOnlyArea(lua_State* L) {
+	bool val = lua_toboolean(L, -1);
+	Locker realObjectLocker(realObject);
+	realObject->setOvertOnlyArea(val);
+
+	return 0;
+}
+
+int LuaActiveArea::isOvertOnlyArea(lua_State* L) {
+	bool val = realObject->isOvertOnlyArea();
+
+	lua_pushboolean(L, val);
+
+	return 1;
+}
+
+int LuaActiveArea::setRebelOnlyArea(lua_State* L) {
+	bool val = lua_toboolean(L, -1);
+	Locker realObjectLocker(realObject);
+	realObject->setRebelOnlyArea(val);
+
+	return 0;
+}
+
+int LuaActiveArea::isRebelOnlyArea(lua_State* L) {
+	bool val = realObject->isRebelOnlyArea();
+
+	lua_pushboolean(L, val);
+
+	return 1;
+}
+
+int LuaActiveArea::setImperialOnlyArea(lua_State* L) {
+	bool val = lua_toboolean(L, -1);
+	Locker realObjectLocker(realObject);
+	realObject->setImperialOnlyArea(val);
+
+	return 0;
+}
+
+int LuaActiveArea::isImperialOnlyArea(lua_State* L) {
+	bool val = realObject->isImperialOnlyArea();
+
+	lua_pushboolean(L, val);
+
+	return 1;
+}
+
+int LuaActiveArea::setNoCombatArea(lua_State* L) {
+	bool val = lua_toboolean(L, -1);
+	Locker realObjectLocker(realObject);
+	realObject->setNoCombatArea(val);
+
+	return 0;
+}
+
+int LuaActiveArea::isNoCombatArea(lua_State* L) {
+	bool val = realObject->isNoCombatArea();
+
+	lua_pushboolean(L, val);
+
+	return 1;
+}
+
+int LuaActiveArea::setNoPetArea(lua_State* L) {
+	bool val = lua_toboolean(L, -1);
+	Locker realObjectLocker(realObject);
+	realObject->setNoPetArea(val);
+
+	return 0;
+}
+
+int LuaActiveArea::isNoPetArea(lua_State* L) {
+	bool val = realObject->isNoPetArea();
+
+	lua_pushboolean(L, val);
+
+	return 1;
+}
+
+int LuaActiveArea::setLockedArea(lua_State* L) {
+	bool val = lua_toboolean(L, -1);
+	Locker realObjectLocker(realObject);
+	realObject->setLockedArea(val);
+
+	return 0;
+}
+
+int LuaActiveArea::isLockedArea(lua_State* L) {
+	bool val = realObject->isLockedArea();
+
+	lua_pushboolean(L, val);
+
+	return 1;
+}
+
+int LuaActiveArea::setCampingArea(lua_State* L) {
+	bool val = lua_toboolean(L, -1);
+	Locker realObjectLocker(realObject);
+
+	if (val) {
+		realObject->addAreaFlag(ActiveArea::CAMPINGAREA);
+	} else {
+		realObject->removeAreaFlag(ActiveArea::CAMPINGAREA);
+	}
+
+	return 0;
+}
+
+int LuaActiveArea::getAreaName(lua_State* L) {
+	String name = realObject->getAreaName();
+
+	lua_pushstring(L, name.toCharArray());
+
+	return 1;
 }

@@ -37,6 +37,7 @@ include server.zone.objects.scene.variables.PendingTasksMap;
 include server.zone.objects.scene.SessionFacadeType;
 include server.zone.objects.scene.ObserverType;
 include templates.manager.PlanetMapCategory;
+include templates.manager.PlanetMapSubCategory;
 include templates.manager.TemplateManager;
 include templates.SharedObjectTemplate;
 include server.zone.objects.scene.components.ZoneComponent;
@@ -139,6 +140,8 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	protected unsigned long originalObjectID;
 
 	protected boolean forceNoTrade;
+
+	protected transient boolean debuggingRegions;
 
 	/**
 	 * SceneObject constructor, used to initialize the object.
@@ -1272,6 +1275,9 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	 */
 	public native void rotate(int degrees);
 
+	public native void rotatePitch(int degrees);
+	public native void rotateRoll(int degrees);
+
 	/**
 	 * Sets this objects direction so that the object is facing the specified object.
 	 * @param obj The object to face.
@@ -1402,9 +1408,9 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 
 	@local
 	@read
-	public boolean isDetector() {
+	public boolean isScanner() {
 		return dataObjectComponent.get() != null &&
-		dataObjectComponent.get().isDetectorData();
+		dataObjectComponent.get().isScannerData();
 	}
 
 	@local
@@ -1473,7 +1479,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 
 	@read
 	public boolean isForceNoTrade() {
-		return forceNoTrade;
+		return forceNoTrade || templateObject.isForceNoTrade();
 	}
 
 	@read
@@ -1540,6 +1546,11 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 
 	@dirty
 	public abstract boolean isDroidObject() {
+		return false;
+	}
+
+	@dirty
+	public abstract boolean isHelperDroidObject() {
 		return false;
 	}
 
@@ -2027,15 +2038,18 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 
 	@local
 	public void setPlanetMapCategory(final PlanetMapCategory pmc) {
-		if (!pmc)
+		if (pmc == null)
 			planetMapCategory = 0;
 		else
 			planetMapCategory = pmc.getCrc();
 	}
 
 	@local
-	public void setPlanetMapSubCategory(final PlanetMapCategory pmc)  {
-		planetMapSubCategory = pmc.getCrc();
+	public void setPlanetMapSubCategory(final PlanetMapSubCategory subPmc)  {
+		if (subPmc == null)
+			planetMapSubCategory = 0;
+		else
+			planetMapSubCategory = subPmc.getCrc();
 	}
 
 	@local
@@ -2047,9 +2061,9 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 
 	@local
 	@read
-	public final PlanetMapCategory getPlanetMapSubCategory() {
+	public final PlanetMapSubCategory getPlanetMapSubCategory() {
 		TemplateManager templateManager = TemplateManager.instance();
-		return templateManager.getPlanetMapCategoryByCrc(planetMapSubCategory);
+		return templateManager.getPlanetMapSubCategoryByCrc(planetMapSubCategory);
 	}
 
 	@local
@@ -2195,5 +2209,18 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	@dirty
 	public abstract boolean canBeTransferred(SceneObject newContainer) {
 		return true;
+	}
+
+	@dirty
+	public native boolean isNearBank();
+
+	@preLocked
+	public void setDebuggingRegions(boolean val) {
+		debuggingRegions = val;
+	}
+
+	@read
+	public boolean isDebuggingRegions() {
+		return debuggingRegions;
 	}
 }

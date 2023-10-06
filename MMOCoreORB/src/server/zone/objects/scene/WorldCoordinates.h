@@ -29,7 +29,6 @@ class WorldCoordinates : public Object {
 protected:
 	Vector3 point;
 	ManagedReference<CellObject*> cell;
-	bool cellEdge = false;
 
 public:
 	WorldCoordinates();
@@ -93,10 +92,6 @@ public:
 		point.setZ(z);
 	}
 
-	inline void setCellEdge(bool edge) {
-		cellEdge = edge;
-	}
-
 	inline const Vector3& getPoint() const {
 		return point;
 	}
@@ -121,17 +116,27 @@ public:
 		return point.getZ();
 	}
 
-	inline bool isCellEdge() const {
-		return cellEdge;
+	inline String toString() const {
+		StringBuffer buf;
+
+		buf <<"WorldCoordinates(x:" << point.getX()
+			<< ", y:" << point.getY()
+			<< ", z:" << point.getZ()
+			<< ", cell: ";
+
+		if (cell == nullptr) {
+			buf << "nullptr";
+		} else {
+			buf << cell->getCellNumber();
+		}
+
+		buf << ")";
+
+		return buf.toString();
 	}
 
-	inline String toString() const {
-		StringBuffer sb;
-		sb << point.toString();
-		sb << " in " << String::valueOf(cell != nullptr ? cell->getCellNumber() : 0) << ".";
-		String edge = cellEdge ? "True" : "False";
-		sb << " isCellEdge = " << edge;
-		return sb.toString();
+	String toStringData() const {
+		return toString();
 	}
 };
 
