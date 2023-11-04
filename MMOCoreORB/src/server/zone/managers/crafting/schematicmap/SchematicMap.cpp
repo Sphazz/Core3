@@ -29,12 +29,25 @@ SchematicMap::~SchematicMap() {
 }
 
 void SchematicMap::initialize(ZoneServer* server) {
+	bool schematicsEnabled = ConfigManager::instance()->getBool("Core3.schematicsEnabled", true);
+	bool schematicsCustomEnabled = ConfigManager::instance()->getBool("Core3.schematicsCustomEnabled", true);
+	if (!schematicsEnabled && !schematicsCustomEnabled) {
+		info("Schematics Disabled.");
+		return;
+	}
+
 	zoneServer = server;
 	objectManager = zoneServer->getObjectManager();
 
 	loadDraftSchematicDatabase();
-	loadDraftSchematicFile("scripts/managers/crafting/schematics.lua");
-	loadDraftSchematicFile("scripts/custom_scripts/managers/crafting/schematics.lua");
+	if (schematicsEnabled) {
+		info("Default Scematics Loaded.");
+		loadDraftSchematicFile("scripts/managers/crafting/schematics.lua");
+	}
+	if (schematicsCustomEnabled) {
+		info("Custom Scematics Loaded.");
+		loadDraftSchematicFile("scripts/custom_scripts/managers/crafting/schematics.lua");
+	}
 	loadSchematicGroups();
 }
 

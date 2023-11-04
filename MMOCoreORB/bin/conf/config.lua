@@ -240,6 +240,8 @@ Core3 = {
 
 	-- Custom Managers
 	resourceManagerEnabled = false,
+	schematicsEnabled = false,
+	schematicsCustomEnabled = false,
 }
 
 -- NOTE: conf/config-local.lua is parsed after this file if it exists
