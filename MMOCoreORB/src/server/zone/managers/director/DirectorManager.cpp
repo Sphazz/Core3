@@ -966,9 +966,10 @@ int DirectorManager::givePlayerResource(lua_State* L) {
 		return 0;
 
 	ResourceManager* resourceManager = zoneServer->getResourceManager();
-
-	if (resourceManager == nullptr)
+	if (resourceManager == nullptr) {
+		player->sendSystemMessage("Resource Manager is currently disabled.");
 		return 0;
+	}
 
 	int type = 0;
 

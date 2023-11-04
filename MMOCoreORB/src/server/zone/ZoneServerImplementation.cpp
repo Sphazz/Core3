@@ -168,8 +168,12 @@ void ZoneServerImplementation::initialize() {
 	lootManager->deploy("LootManager");
 	lootManager->initialize();
 
-	resourceManager = new ResourceManager(_this.getReferenceUnsafeStaticCast(), processor);
-	resourceManager->deploy("ResourceManager");
+	if (ConfigManager::instance()->getBool("Core3.resourceManagerEnabled", true)) {
+		resourceManager = new ResourceManager(_this.getReferenceUnsafeStaticCast(), processor);
+		resourceManager->deploy("ResourceManager");
+	} else {
+		info("ResourceManager Disabled.");
+	}
 
 	cityManager = new CityManager(_this.getReferenceUnsafeStaticCast());
 	cityManager->deploy("CityManager");
@@ -215,7 +219,8 @@ void ZoneServerImplementation::startZones() {
 		zones->put(zoneName, zone);
 	}
 
-	resourceManager->initialize();
+	if (ConfigManager::instance()->getBool("Core3.resourceManagerEnabled", true))
+		resourceManager->initialize();
 
 	for (int i = 0; i < zones->size(); ++i) {
 		Zone* zone = zones->get(i);

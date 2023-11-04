@@ -146,6 +146,10 @@ public:
 					quantity = args.getIntToken();
 
 				ManagedReference<ResourceManager*> resourceManager = server->getZoneServer()->getResourceManager();
+				if (resourceManager == nullptr) {
+					creature->sendSystemMessage("Resource Manager is currently disabled.");
+					return 0;
+				}
 				resourceManager->givePlayerResource(creature, resourceName, quantity);
 			} else if (commandType.beginsWith("createarealoot")) {
 				String lootGroup;

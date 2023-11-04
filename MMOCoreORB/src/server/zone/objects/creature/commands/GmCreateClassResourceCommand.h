@@ -24,6 +24,10 @@ public:
 			return INVALIDLOCOMOTION;
 
 		ManagedReference<ResourceManager* > resourceManager = server->getZoneServer()->getResourceManager();
+		if (resourceManager == nullptr) {
+			creature->sendSystemMessage("Resource Manager is currently disabled.");
+			return 0;
+		}
 		resourceManager->createResourceSpawn(creature, arguments);
 
 		return SUCCESS;

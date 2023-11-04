@@ -37,6 +37,7 @@ int SurveySessionImplementation::startSession() {
 	resourceManager = surveyer->getZoneServer()->getResourceManager();
 	if (resourceManager.get() == nullptr) {
 		cancelSession();
+		surveyer->sendSystemMessage("Resource Manager is currently disabled.");
 		return false;
 	}
 

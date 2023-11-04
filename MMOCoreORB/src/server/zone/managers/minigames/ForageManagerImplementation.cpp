@@ -363,9 +363,11 @@ bool ForageManagerImplementation::forageGiveResource(TransactionLog& trx, Creatu
 
 	ManagedReference<ResourceManager*> resourceManager = player->getZoneServer()->getResourceManager();
 
-	if (resourceManager == nullptr)
+	if (resourceManager == nullptr) {
+		player->sendSystemMessage("Resource Manager is currently disabled.");
 		return false;
-
+	}
+	
 	ManagedReference<ResourceSpawn*> resource = nullptr;
 
 	if(resType.isEmpty()) {

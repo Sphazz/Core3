@@ -66,7 +66,7 @@ int SurveyToolImplementation::handleObjectMenuSelect(CreatureObject* player, byt
 			session->setOpenSurveyTool(_this.getReferenceUnsafeStaticCast());
 
 			ManagedReference<ResourceManager*> resourceManager = cast<ResourceManager*>(server->getZoneServer()->getResourceManager());
-			if(resourceManager == nullptr) {
+			if (resourceManager == nullptr) {
 				error("null resource manager");
 				return 0;
 			}

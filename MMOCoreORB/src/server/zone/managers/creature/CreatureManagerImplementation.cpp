@@ -750,6 +750,11 @@ void CreatureManagerImplementation::droidHarvest(Creature* creature, CreatureObj
 	}
 
 	ManagedReference<ResourceManager*> resourceManager = zone->getZoneServer()->getResourceManager();
+	if (resourceManager == nullptr) {
+		owner->sendSystemMessage("Resource Manager is currently disabled.");
+		return;
+	}
+
 	String restype = "";
 	float quantity = 0;
 
@@ -894,6 +899,10 @@ void CreatureManagerImplementation::harvest(Creature* creature, CreatureObject* 
 		return;
 
 	ManagedReference<ResourceManager*> resourceManager = zone->getZoneServer()->getResourceManager();
+	if (resourceManager == nullptr) {
+		player->sendSystemMessage("Resource Manager is currently disabled.");
+		return;
+	}
 
 	String restype = "";
 	float quantity = 0;

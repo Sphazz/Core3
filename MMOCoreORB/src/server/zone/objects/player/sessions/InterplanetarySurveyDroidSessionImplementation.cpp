@@ -96,6 +96,12 @@ void InterplanetarySurveyDroidSessionImplementation::handleMenuSelect(CreatureOb
 	if (tangibleObject == nullptr || player == nullptr || player != pl)
 		return;
 
+	ManagedReference<ResourceManager*> resourceManager = pl->getZoneServer()->getResourceManager();
+	if (resourceManager == nullptr) {
+		player->sendSystemMessage("Resource Manager is currently disabled.");
+		return;
+	}
+
 	// which did he pick? first or second callback?
 	if (step == 1) {
 		// Get the id back
@@ -126,7 +132,7 @@ void InterplanetarySurveyDroidSessionImplementation::handleMenuSelect(CreatureOb
 		droidSuiBox->setPromptText("@pet/droid_modules:survey_planet_prompt");
 
 		// Loop planets and add them in
-		pl->getZoneServer()->getResourceManager()->addPlanetsToListBox(droidSuiBox);
+		resourceManager->addPlanetsToListBox(droidSuiBox);
 		player->getPlayerObject()->addSuiBox(droidSuiBox);
 		player->sendMessage(droidSuiBox->generateMessage());
 		step = 2;
@@ -151,7 +157,7 @@ void InterplanetarySurveyDroidSessionImplementation::handleMenuSelect(CreatureOb
 
 		float quality = component->getAttributeValue("mechanism_quality");
 		uint64 chosen = droidSuiBox->getMenuObjectID(menuID);
-		this->targetPlanet = pl->getZoneServer()->getResourceManager()->getPlanetByIndex(chosen);
+		this->targetPlanet = resourceManager->getPlanetByIndex(chosen);
 		int duration = 1000 * (3600 - (27 * quality));
 		int minutes = duration/60000;
 

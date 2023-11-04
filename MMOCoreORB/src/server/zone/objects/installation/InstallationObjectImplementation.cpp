@@ -222,6 +222,10 @@ void InstallationObjectImplementation::handleStructureAddEnergy(CreatureObject* 
 		energyBox->setPromptText(sstext.toString());
 
 		ResourceManager* resourceManager = getZoneServer()->getResourceManager();
+		if (resourceManager == nullptr) {
+			player->sendSystemMessage("Resource Manager is currently disabled.");
+			return;
+		}
 
 		ssTotalEnergy << resourceManager->getAvailablePowerFromPlayer(player);
 
@@ -542,6 +546,10 @@ void InstallationObjectImplementation::changeActiveResourceID(uint64 spawnID) {
 	}
 
 	auto resourceManager = getZoneServer()->getResourceManager();
+	if (resourceManager == nullptr) {
+		error() << __FUNCTION__ << " Resource Manager is currently disabled.";
+		return;
+	}
 
 	Vector<ManagedReference<ResourceSpawn*> > resourceList;
 

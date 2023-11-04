@@ -25,6 +25,9 @@ public:
 	void run() {
 		// Determine what planet and type, and pull results
 		ManagedReference<ResourceManager*> rmanager = ServerCore::getZoneServer()->getResourceManager();
+		if (rmanager == nullptr)
+			return;
+
 		Vector<ManagedReference<ResourceSpawn*> > resources;
 		rmanager->getResourceListByType(resources, surveyData->getSurveyToolType(), surveyData->getPlanet());
 		// format email and send

@@ -943,6 +943,10 @@ void MissionManagerImplementation::randomizeGenericSurveyMission(CreatureObject*
 		randLevel = maxLevel;
 
 	ResourceManager* manager = server->getResourceManager();
+	if (manager == nullptr) {
+		player->sendSystemMessage("Resource Manager is currently disabled.");
+		return;
+	}
 
 	String zoneName = playerZone->getZoneName();
 

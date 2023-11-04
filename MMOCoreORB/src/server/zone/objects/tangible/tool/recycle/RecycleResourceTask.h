@@ -70,7 +70,7 @@ public:
 		ResourceManager* manager = player->getZoneServer()->getResourceManager();
 
 		if(manager == nullptr) {
-			removeFromRecycler("failed to get resourceManager");
+			removeFromRecycler("Resource Manager is currently disabled.");
 			return;
 		}
 

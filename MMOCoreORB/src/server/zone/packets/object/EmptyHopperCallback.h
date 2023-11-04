@@ -128,7 +128,7 @@ public:
 					auto resourceManager = zoneServer->getResourceManager();
 
 					if (resourceManager == nullptr) {
-						player->error("nullptr resourceManager");
+						player->error("Resource Manager is currently disabled.");
 						return;
 					}
 

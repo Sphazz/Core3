@@ -56,6 +56,11 @@ public:
 		}
 
 		ResourceManager* resourceManager = server->getZoneServer()->getResourceManager();
+		if (resourceManager == nullptr) {
+			creature->sendSystemMessage("Resource Manager is currently disabled.");
+			return 0;
+		}
+
 		uint32 totalPower = resourceManager->getAvailablePowerFromPlayer(creature);
 
 		if (totalPower < amount) {

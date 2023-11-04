@@ -17,6 +17,8 @@ public:
 		Vector<ManagedReference<ResourceSpawn*> > resourceList;
 
 		ResourceManager* resourceManager = hino->getZoneServer()->getResourceManager();
+		if (resourceManager == nullptr)
+			return;
 		resourceManager->getResourceListByType(resourceList, hino->getInstallationType(), zone->getZoneName());
 
 		/*StringBuffer msg;

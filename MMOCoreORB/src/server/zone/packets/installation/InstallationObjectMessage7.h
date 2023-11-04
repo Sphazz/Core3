@@ -19,6 +19,8 @@ public:
 		if (inso->getObjectSubType() == TangibleObjectImplementation::HARVESTER) {
 			HarvesterObject* hino = cast<HarvesterObject*>( inso);
 			ResourceManager* resourceManager = inso->getZone()->getZoneServer()->getResourceManager();
+			if (resourceManager == nullptr)
+				return;
 			ResourceList* list = resourceManager->getResourceListAtLocation(inso->getZone()->getZoneName(), inso->getPositionX(), inso->getPositionY(), hino->getHarvesterType());
 
 			if (list == nullptr)

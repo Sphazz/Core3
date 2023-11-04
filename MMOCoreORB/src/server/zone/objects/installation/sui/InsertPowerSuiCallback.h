@@ -42,6 +42,10 @@ public:
 		InstallationObject* installation = cast<InstallationObject*>( object.get());
 
 		ManagedReference<ResourceManager*> resourceManager = player->getZoneServer()->getResourceManager();
+		if (resourceManager == nullptr) {
+			player->sendSystemMessage("Resource Manager is currently disabled.");
+			return;
+		}
 
 		//TODO: This should be handled in StructureManager
 

@@ -105,6 +105,10 @@ public:
 
 	void giveMilkToPlayer() {
 		ManagedReference<ResourceManager*> resourceManager = player->getZoneServer()->getResourceManager();
+		if (resourceManager == nullptr) {
+			player->sendSystemMessage("Resource Manager is currently disabled.");
+			return;
+		}
 
 		String restype = creature->getMilkType();
 		int quantity = creature->getMilk();

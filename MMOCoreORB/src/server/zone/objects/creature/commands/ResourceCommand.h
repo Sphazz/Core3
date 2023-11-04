@@ -24,6 +24,10 @@ public:
 			return INVALIDLOCOMOTION;
 
 		ResourceManager* resMan = creature->getZoneServer()->getResourceManager();
+		if (resMan == nullptr) {
+			creature->sendSystemMessage("Resource Manager is currently disabled.");
+			return 0;
+		}
 
 		Locker locker(resMan);
 
@@ -86,6 +90,10 @@ public:
 			throw Exception();
 
 		ResourceManager* resMan = creature->getZoneServer()->getResourceManager();
+		if (resMan == nullptr) {
+			creature->sendSystemMessage("Resource Manager is currently disabled.");
+			return;
+		}
 		resMan->listResourcesForPlanetOnScreen(creature, planet);
 	}
 
@@ -94,6 +102,10 @@ public:
 			return;
 
 		ResourceManager* resMan = creature->getZoneServer()->getResourceManager();
+		if (resMan == nullptr) {
+			creature->sendSystemMessage("Resource Manager is currently disabled.");
+			return;
+		}
 
 		creature->sendSystemMessage(resMan->healthCheck());
 	}
@@ -103,6 +115,10 @@ public:
 			return;
 
 		ResourceManager* resMan = creature->getZoneServer()->getResourceManager();
+		if (resMan == nullptr) {
+			creature->sendSystemMessage("Resource Manager is currently disabled.");
+			return;
+		}
 
 		creature->sendSystemMessage(resMan->dumpResources());
 	}
@@ -117,6 +133,10 @@ public:
 
 
 		ResourceManager* resMan = creature->getZoneServer()->getResourceManager();
+		if (resMan == nullptr) {
+			creature->sendSystemMessage("Resource Manager is currently disabled.");
+			return;
+		}
 
 		creature->sendSystemMessage(resMan->despawnResource(resourceName));
 	}
@@ -130,6 +150,10 @@ public:
 			args->getStringToken(resourceName);
 
 		ResourceManager* resMan = creature->getZoneServer()->getResourceManager();
+		if (resMan == nullptr) {
+			creature->sendSystemMessage("Resource Manager is currently disabled.");
+			return;
+		}
 
 		ManagedReference<ResourceSpawn*> spawn = resMan->getResourceSpawn(resourceName);
 		if(spawn == nullptr) {
@@ -180,8 +204,11 @@ public:
 			throw Exception();
 
 		ResourceManager* resMan = creature->getZoneServer()->getResourceManager();
-		if (resMan == nullptr)
+		
+		if (resMan == nullptr) {
+			creature->sendSystemMessage("Resource Manager is currently disabled.");
 			throw Exception();
+		}
 
 		String resourceType = "";
 		args->getStringToken(resourceType);
@@ -314,8 +341,10 @@ public:
 			throw Exception();
 
 		ResourceManager* resMan = creature->getZoneServer()->getResourceManager();
-		if (resMan == nullptr)
+		if (resMan == nullptr) {
+			creature->sendSystemMessage("Resource Manager is currently disabled.");
 			throw Exception();
+		}
 
 		if (!args->hasMoreTokens())
 			throw Exception();

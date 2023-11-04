@@ -622,7 +622,9 @@ void FishingManagerImplementation::success(CreatureObject* player, int fish, Sce
 				int amount = harvestingMod * 50;
 
 				ManagedReference<ResourceManager*> resourceManager = zoneServer->getResourceManager();
-				ManagedReference<SceneObject*> resource = cast<SceneObject*>(resourceManager->harvestResource(player, resourceString, amount));
+				ManagedReference<SceneObject*> resource = nullptr;
+				if (resourceManager != nullptr)
+					resource = cast<SceneObject*>(resourceManager->harvestResource(player, resourceString, amount));
 
 				if (resource != nullptr) {
 					Locker resourceLocker(resource);

@@ -51,6 +51,10 @@ int ResourceDeedImplementation::useObject(CreatureObject* creature) {
 	}
 
 	ManagedReference<ResourceManager*> resourceManager = server->getZoneServer()->getResourceManager();
+	if (resourceManager == nullptr) {
+		creature->sendSystemMessage("Resource Manager is currently disabled.");
+		return 0;
+	}
 
 	ManagedReference<SuiListBox*> sui = new SuiListBox(creature, SuiWindowType::FREE_RESOURCE);
 	sui->setUsingObject(_this.getReferenceUnsafeStaticCast());

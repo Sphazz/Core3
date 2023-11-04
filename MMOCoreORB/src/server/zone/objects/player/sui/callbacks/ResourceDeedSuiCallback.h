@@ -59,6 +59,10 @@ public:
 		}
 
 		ManagedReference<ResourceManager*> resourceManager = creature->getZoneServer()->getResourceManager();
+		if (resourceManager == nullptr) {
+			creature->sendSystemMessage("Resource Manager is currently disabled.");
+			return;
+		}
 
 		if (backPressed) {
 			if(nodeName == "Resources" || nodeName == "Resource")
